@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "CorpChatApp",
+    "slug": "corpchatapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android"],
+    "android": {
+      "usesCleartextTraffic": true
+    }
+  }
+}

@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:q1w2e3@127.0.0.1:3306/corpchat"
+}
+
+model User {
+  id               String     @id @default(uuid())
+  email            String     @unique
+  displayName      String
+  passwordHash     String
+  refreshTokenHash String?
+  status           UserStatus @default(ACTIVE)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
