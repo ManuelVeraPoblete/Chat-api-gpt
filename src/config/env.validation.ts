@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import {
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Min,
   validateSync,
@@ -39,6 +40,36 @@ class EnvVars {
   @IsInt()
   @Min(8)
   BCRYPT_SALT_ROUNDS!: number;
+
+  /**
+   * ✅ MongoDB connection string
+   * Ej: mongodb://localhost:27017/corpchat
+   */
+  @IsString()
+  @IsNotEmpty()
+  MONGO_URI!: string;
+
+  /**
+   * ✅ OpenAI key (solo backend)
+   */
+  @IsString()
+  @IsNotEmpty()
+  OPENAI_API_KEY!: string;
+
+  /**
+   * ✅ OpenAI model (opcional)
+   * Ej: gpt-4o-mini
+   */
+  @IsString()
+  @IsOptional()
+  OPENAI_MODEL?: string;
+
+  /**
+   * ✅ UUID del usuario "Asistente Corporativo" en tu BD
+   */
+  @IsString()
+  @IsNotEmpty()
+  ASSISTANT_USER_ID!: string;
 }
 
 /**
