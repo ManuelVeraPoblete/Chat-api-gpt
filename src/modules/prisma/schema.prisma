@@ -1,53 +1,13 @@
-// =======================================================
-// Prisma schema (MySQL)
-// - NO se define datasource.url aquí en Prisma 7
-// - Se mapean columnas snake_case reales de la BD
-// =======================================================
-
-generator client {
-  // Prisma 7 recomendado
-  provider = "prisma-client"
-
-  // ✅ Como tu schema está en src/modules/prisma,
-  // generamos el client en src/generated/prisma
-  output = "../../generated/prisma"
-  moduleFormat = "cjs" // ✅ compatible con NestJS común (CJS)
-}
-
-datasource db {
-  provider = "mysql"
-  // ❌ NO url aquí (va en prisma.config.ts)
-}
-
 model User {
-  // BD: id CHAR(36)
-  id String @id @default(uuid()) @db.Char(36)
+  id               String   @id @default(uuid())
+  email            String   @unique
+  displayName      String
+  passwordHash     String
 
-  // BD: email VARCHAR(180)
-  email String @unique @db.VarChar(180)
+  phone            String?
+  companySection   String?
+  jobTitle         String?
 
-  // BD: display_name VARCHAR(180)
-  displayName String @map("display_name") @db.VarChar(180)
-
-  // BD: password_hash VARCHAR(255)
-  passwordHash String @map("password_hash") @db.VarChar(255)
-
-  // BD: refresh_token_hash VARCHAR(255) NULL
-  refreshTokenHash String? @map("refresh_token_hash") @db.VarChar(255)
-
-  // BD: status ENUM('ACTIVE','SUSPENDED')
-  status UserStatus @default(ACTIVE)
-
-  // BD: created_at DATETIME
-  createdAt DateTime @map("created_at") @default(now())
-
-  // BD: updated_at DATETIME
-  updatedAt DateTime @map("updated_at") @updatedAt
-
-  @@map("User")
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
 }

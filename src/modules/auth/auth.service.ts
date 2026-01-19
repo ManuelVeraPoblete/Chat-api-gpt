@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { CryptoUtil } from 'src/common/util/crypto.util';
+import { RegisterDto } from './dto/register.dto';
+
 /**
  * AuthService: casos de uso de autenticación.
  * SRP: emitir tokens, validar credenciales, refresh/logout.
@@ -23,15 +25,63 @@ export class AuthService {
     this.refreshTtl = Number(this.config.get<number>('jwt.refreshTtlSeconds'));
   }
 
-  async register(email: string, displayName: string, password: string) {
-    const passwordHash = await CryptoUtil.hash(password, this.saltRounds);
-    const user = await this.users.createUser({ email, displayName, passwordHash });
+  /**
+   * ✅ Overloads (compatibilidad)
+   * - register(dto) ✅ nuevo recomendado
+   * - register(email, displayName, password) ✅ legacy
+   */
+  async register(dto: RegisterDto): Promise<any>;
+  async register(email: string, displayName: string, password: string): Promise<any>;
 
+  /**
+   * ✅ Implementación única
+   * - Normaliza argumentos a un DTO
+   * - Hashea password
+   * - Crea usuario con campos corporativos
+   * - Emite tokens y guarda refreshTokenHash
+   * - Devuelve perfil público
+   */
+  async register(arg1: RegisterDto | string, displayName?: string, password?: string) {
+    // ✅ Normalizamos: si viene string => legacy, si viene objeto => DTO moderno
+    const dto: RegisterDto =
+      typeof arg1 === 'string'
+        ? ({
+            email: arg1,
+            displayName: displayName!,
+            password: password!,
+          } as RegisterDto)
+        : arg1;
+
+    // ✅ Hash password
+    const passwordHash = await CryptoUtil.hash(dto.password, this.saltRounds);
+
+    /**
+     * ✅ IMPORTANTE:
+     * UsersService.createUser debe aceptar estos campos opcionales
+     * phone / companySection / jobTitle
+     */
+    const user = await this.users.createUser({
+      email: dto.email,
+      displayName: dto.displayName,
+      passwordHash,
+
+      // ✅ Campos corporativos (si existen en tu modelo)
+      phone: dto.phone ?? null,
+      companySection: dto.companySection ?? null,
+      jobTitle: dto.jobTitle ?? null,
+    });
+
+    // ✅ Emitimos tokens
     const tokens = await this.issueTokens(user.id, user.email);
+
+    // ✅ Guardamos refresh token hasheado (rotación)
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
+    // ✅ devolvemos perfil público (con campos corporativos si existen)
+    const publicUser = await this.users.findPublicById(user.id);
+
     return {
-      user: { id: user.id, email: user.email, displayName: user.displayName },
+      user: publicUser,
       ...tokens,
     };
   }
@@ -46,10 +96,20 @@ export class AuthService {
     const tokens = await this.issueTokens(user.id, user.email);
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
+    // ✅ devolvemos perfil público completo
+    const publicUser = await this.users.findPublicById(user.id);
+
     return {
-      user: { id: user.id, email: user.email, displayName: user.displayName },
+      user: publicUser,
       ...tokens,
     };
+  }
+
+  /**
+   * ✅ Perfil del usuario logeado
+   */
+  async me(userId: string) {
+    return this.users.findPublicById(userId);
   }
 
   async refresh(refreshToken: string) {
@@ -76,12 +136,15 @@ export class AuthService {
     return { ok: true };
   }
 
+  /**
+   * ✅ Access + Refresh tokens
+   */
   private async issueTokens(userId: string, email: string) {
     const accessToken = await this.jwt.signAsync(
       { sub: userId, email },
       {
         secret: this.config.get<string>('jwt.accessSecret'),
-        expiresIn: this.accessTtl,
+        expiresIn: this.accessTtl, // segundos
       },
     );
 
@@ -89,18 +152,24 @@ export class AuthService {
       { sub: userId, email },
       {
         secret: this.config.get<string>('jwt.refreshSecret'),
-        expiresIn: this.refreshTtl,
+        expiresIn: this.refreshTtl, // segundos
       },
     );
 
     return { accessToken, refreshToken };
   }
 
+  /**
+   * ✅ Guarda el refresh token hasheado para poder revocarlo/rotarlo
+   */
   private async storeRefreshTokenHash(userId: string, refreshToken: string) {
     const refreshTokenHash = await CryptoUtil.hash(refreshToken, this.saltRounds);
     await this.users.updateRefreshTokenHash(userId, refreshTokenHash);
   }
 
+  /**
+   * ✅ Verifica firma y expiración del refresh token
+   */
   private async verifyRefreshToken(token: string): Promise<{ sub: string; email: string }> {
     try {
       return await this.jwt.verifyAsync(token, {

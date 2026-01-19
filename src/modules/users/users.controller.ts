@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 
@@ -26,12 +26,21 @@ export class UsersController {
    *
    * - Protegido con JWT
    * - Retorna datos seguros (sin hashes)
-   * - Excluye el usuario logeado (opcional pero recomendado)
+   * - Excluye al usuario logeado
    */
   @UseGuards(AuthGuard('jwt'))
   @Get()
   async findAll(@Req() req: any) {
-    const currentUserId: string | undefined = req?.user?.sub; // viene del JWT payload
+    /**
+     * ✅ JwtStrategy.validate normalmente retorna { userId, email }
+     * Si por cualquier razón no viene userId, lanzamos error (seguridad)
+     */
+    const currentUserId: string | undefined = req?.user?.userId;
+
+    if (!currentUserId) {
+      throw new UnauthorizedException('Invalid token: userId missing');
+    }
+
     return this.usersService.findAllPublic(currentUserId);
   }
 }

@@ -2,22 +2,23 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * UsersService: reglas de negocio relacionadas a usuarios.
- * No maneja JWT ni auth: SRP.
+ * UsersService
+ * - Contiene reglas de negocio relacionadas a usuarios
+ * - No maneja JWT (SRP)
  */
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * ✅ Usado por Auth/Login (necesita passwordHash internamente)
+   * ✅ Busca usuario por email (para login y validación de duplicados)
    */
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
   /**
-   * ✅ Busca usuario por id
+   * ✅ Busca usuario por ID (completo)
    */
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
@@ -26,9 +27,64 @@ export class UsersService {
   }
 
   /**
-   * ✅ Crea usuario
+   * ✅ Devuelve el perfil público del usuario (sin passwordHash)
+   * Usado por: /auth/me, register, login
    */
-  async createUser(params: { email: string; displayName: string; passwordHash: string }) {
+  async findPublicById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        phone: true,
+        companySection: true,
+        jobTitle: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  /**
+   * ✅ Lista pública de usuarios para el chat (sin passwordHash)
+   * - Excluye al usuario logeado (currentUserId)
+   * - Ordena por displayName asc para UX tipo WhatsApp
+   */
+  async findAllPublic(currentUserId: string) {
+    return this.prisma.user.findMany({
+      where: {
+        id: { not: currentUserId }, // ✅ excluye al usuario actual
+      },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        phone: true,
+        companySection: true,
+        jobTitle: true,
+        createdAt: true,
+      },
+      orderBy: {
+        displayName: 'asc',
+      },
+    });
+  }
+
+  /**
+   * ✅ Crea usuario con campos extendidos (corporativos)
+   * - Valida duplicidad por email
+   */
+  async createUser(params: {
+    email: string;
+    displayName: string;
+    passwordHash: string;
+    phone?: string | null;
+    companySection?: string | null;
+    jobTitle?: string | null;
+  }) {
     const existing = await this.findByEmail(params.email);
     if (existing) throw new ConflictException('Email already in use');
 
@@ -37,39 +93,20 @@ export class UsersService {
         email: params.email,
         displayName: params.displayName,
         passwordHash: params.passwordHash,
+        phone: params.phone ?? null,
+        companySection: params.companySection ?? null,
+        jobTitle: params.jobTitle ?? null,
       },
     });
   }
 
   /**
-   * ✅ Actualiza hash del refresh token (seguridad)
+   * ✅ Actualiza el hash del refresh token (para rotación/revocación)
    */
   async updateRefreshTokenHash(userId: string, refreshTokenHash: string | null) {
     return this.prisma.user.update({
       where: { id: userId },
       data: { refreshTokenHash },
-    });
-  }
-
-  /**
-   * ✅ Lista de usuarios pública (para chat)
-   * - NO expone passwordHash ni refreshTokenHash
-   * - Excluye al usuario logeado
-   */
-  async findAllPublic(currentUserId?: string) {
-    return this.prisma.user.findMany({
-      where: currentUserId
-        ? {
-            id: { not: currentUserId }, // ✅ no me incluyo en la lista
-          }
-        : undefined,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        createdAt: true,
-      },
     });
   }
 }
