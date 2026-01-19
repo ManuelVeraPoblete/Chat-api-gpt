@@ -1,18 +1,25 @@
-import { Controller, Get, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Req,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 
 /**
- * Controller público de usuarios.
- * - Expone endpoints REST
- * - No contiene lógica de negocio (solo delega al service)
+ * UsersController
+ * - Expone endpoints REST relacionados a usuarios
+ * - Sin lógica de negocio (solo delega al service)
  */
 @Controller('users') // ✅ /users
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * ✅ Endpoint simple para verificar que el controller está mapeado
+   * ✅ Ping público
    * GET /users/ping
    */
   @Get('ping')
@@ -25,16 +32,11 @@ export class UsersController {
    * GET /users
    *
    * - Protegido con JWT
-   * - Retorna datos seguros (sin hashes)
    * - Excluye al usuario logeado
    */
   @UseGuards(AuthGuard('jwt'))
   @Get()
   async findAll(@Req() req: any) {
-    /**
-     * ✅ JwtStrategy.validate normalmente retorna { userId, email }
-     * Si por cualquier razón no viene userId, lanzamos error (seguridad)
-     */
     const currentUserId: string | undefined = req?.user?.userId;
 
     if (!currentUserId) {
@@ -42,5 +44,18 @@ export class UsersController {
     }
 
     return this.usersService.findAllPublic(currentUserId);
+  }
+
+  /**
+   * ✅ Perfil público por ID (el que te faltaba)
+   * GET /users/:id
+   *
+   * - Protegido con JWT
+   * - Retorna datos seguros (sin passwordHash)
+   */
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id')
+  async findPublicById(@Param('id') id: string) {
+    return this.usersService.findPublicById(id);
   }
 }
