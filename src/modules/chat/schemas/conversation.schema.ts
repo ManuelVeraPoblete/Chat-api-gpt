@@ -16,8 +16,13 @@ import { Document } from 'mongoose';
 export class Conversation extends Document {
   /**
    * ✅ Lista de participantes (ej: ["idA", "idB"])
+   *
+   * ✅ Importante:
+   * - No declaramos `index: true` aquí porque el índice se define más abajo con `ConversationSchema.index(...)`.
+   * - Si se define en ambos lados (decorator + schema.index), Mongoose mostrará el warning:
+   *   "Duplicate schema index on { participants: 1 }".
    */
-  @Prop({ type: [String], required: true, index: true })
+  @Prop({ type: [String], required: true })
   participants!: string[];
 
   /**
