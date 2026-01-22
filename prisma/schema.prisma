@@ -1,24 +1,39 @@
+/**
+ * ✅ Prisma Schema (Prisma 7)
+ * - En Prisma 7 NO se configura `url` aquí
+ * - La URL se define en `prisma.config.ts`
+ */
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://root:q1w2e3@127.0.0.1:3306/corpchat"
 }
 
 model User {
-  id               String     @id @default(uuid())
-  email            String     @unique
-  displayName      String
-  passwordHash     String
-  refreshTokenHash String?
-  status           UserStatus @default(ACTIVE)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id String @id @default(uuid()) @db.Char(36)
+
+  email String @unique @db.VarChar(180)
+
+  displayName    String  @map("display_name") @db.VarChar(180)
+  phone          String? @db.VarChar(30)
+  companySection String? @map("company_section") @db.VarChar(120)
+  jobTitle       String? @map("job_title") @db.VarChar(120)
+
+  passwordHash     String  @map("password_hash") @db.VarChar(255)
+  refreshTokenHash String? @map("refresh_token_hash") @db.VarChar(255)
+
+  status UserStatus @default(ACTIVE)
+
+  createdAt DateTime @map("created_at") @default(now())
+  updatedAt DateTime @map("updated_at") @updatedAt
+
+  @@map("User")
 }
 
 enum UserStatus {
   ACTIVE
-  SUSPENDED
+  INACTIVE
 }

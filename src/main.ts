@@ -1,30 +1,31 @@
-import { ValidationPipe } from '@nestjs/common';
+import 'dotenv/config';
+
 import { NestFactory } from '@nestjs/core';
-import { ConfigService } from '@nestjs/config';
-import { AppModule } from './app.module';import 'dotenv/config';
+import { AppModule } from './app.module';
 
-
+/**
+ * ✅ Bootstrap principal de la API
+ * - enableShutdownHooks(): permite cerrar Prisma/Mongo correctamente al apagar la app
+ * - listen en 0.0.0.0: permite acceder desde Postman / celular / emulador si expones puerto
+ */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Validación global (DTOs)
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-    forbidNonWhitelisted: true,
-  }));
+  // ✅ Cierre correcto (PrismaService implementa OnModuleDestroy)
+  app.enableShutdownHooks();
 
-  // CORS (para React Native)
+  // ✅ (Opcional) habilitar CORS si tu frontend lo necesita
   app.enableCors({
-    origin: true,
-    credentials: false,
+    origin: true, // permite cualquier origen en dev
+    credentials: true,
   });
 
-  const config = app.get(ConfigService);
-  const port = config.get<number>('port') ?? 3000;
+  const port = Number(process.env.PORT || 3000);
 
-  await app.listen(port);
-  // eslint-disable-next-line no-console
+  await app.listen(port, '0.0.0.0');
+
+  // ✅ log amigable
   console.log(`✅ API running on http://localhost:${port}`);
 }
+
 bootstrap();

@@ -8,18 +8,19 @@ import { validateEnv } from './config/env.validation';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
-
-// ✅ NUEVO: módulo de chat (lo creamos en el siguiente paso)
 import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
     /**
      * ✅ Variables de entorno globales
-     * Mantienes tu validación actual (validateEnv).
+     * - `envFilePath`: se asegura de cargar tu `.env`
+     * - `load`: carga configuración tipada (tu archivo configuration.ts)
+     * - `validate`: valida variables (tu env.validation.ts)
      */
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env'],
       load: [configuration],
       validate: validateEnv,
     }),
@@ -44,12 +45,15 @@ import { ChatModule } from './modules/chat/chat.module';
       },
     }),
 
-    // ✅ Módulos actuales (no se tocan)
+    /**
+     * ✅ Prisma (MySQL)
+     * PrismaModule es Global, pero lo dejamos importado aquí por claridad.
+     */
     PrismaModule,
+
+    // ✅ Módulos del negocio
     UsersModule,
     AuthModule,
-
-    // ✅ NUEVO: Chat (lo implementamos ahora)
     ChatModule,
   ],
 })
