@@ -1,98 +1,349 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ✅ CorpChat Backend API (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend oficial de **CorpChat**, una API REST construida con **NestJS** que entrega:
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+✅ Autenticación JWT (Access + Refresh)  
+✅ Gestión de usuarios (Prisma + MariaDB/MySQL)  
+✅ Chat persistente (MongoDB + Mongoose)  
+✅ Integración con **OpenAI** para el “Asistente Corporativo”  
+✅ Arquitectura modular y clean code (SRP, DTOs, Guards, Services)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🧱 Tecnologías
 
-## Project setup
+- **Node.js** 20+ (recomendado)
+- **NestJS**
+- **Prisma 7** + `@prisma/adapter-mariadb`
+- **MariaDB/MySQL** (usuarios / auth)
+- **MongoDB** (mensajes / conversaciones)
+- **OpenAI SDK** (respuestas IA)
+- JWT + Passport
+- Class Validator (DTO validation)
+
+---
+
+## 📂 Estructura del proyecto
 
 ```bash
-$ npm install
+src/
+  config/                 # configuración y validación de env
+  common/
+    guards/               # guards reutilizables
+    util/                 # utilidades (bcrypt)
+  modules/
+    prisma/               # PrismaService + schema.prisma
+    users/                # usuarios públicos para el chat
+    auth/                 # login/register/refresh/logout/me
+    chat/                 # conversaciones/messages + OpenAI
 ```
 
-## Compile and run the project
+---
+
+## ✅ Requisitos previos
+
+Debes tener instalados y corriendo:
+
+### 1) Base de datos SQL (MariaDB / MySQL)
+Ejemplo:
+- Host: `localhost`
+- Puerto: `3306`
+- DB: `corpchat`
+
+### 2) MongoDB
+Ejemplo:
+- Host: `localhost`
+- Puerto: `27017`
+- DB: `corpchat`
+
+---
+
+## ⚙️ Variables de entorno
+
+Crea un archivo:
+
+📍 `.env`
+
+```env
+# APP
+NODE_ENV=development
+PORT=3000
+
+# SQL (MariaDB/MySQL)
+DATABASE_URL=mysql://root:123456@localhost:3306/corpchat
+
+# JWT
+JWT_ACCESS_SECRET=super-access-secret
+JWT_REFRESH_SECRET=super-refresh-secret
+JWT_ACCESS_TTL_SECONDS=900
+JWT_REFRESH_TTL_SECONDS=604800
+
+# Security
+BCRYPT_SALT_ROUNDS=12
+
+# MongoDB
+MONGO_URI=mongodb://localhost:27017/corpchat
+
+# OpenAI
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
+OPENAI_MODEL=gpt-4o-mini
+
+# CorpChat Assistant
+ASSISTANT_USER_ID=UUID_DEL_USUARIO_ASISTENTE
+```
+
+✅ **IMPORTANTE**
+- `OPENAI_API_KEY` **solo debe existir en el backend**
+- `ASSISTANT_USER_ID` es el **id del usuario “Asistente Corporativo”** (en tu tabla User SQL)
+
+---
+
+## ▶️ Instalación y ejecución
+
+### 1) Instalar dependencias
+```bash
+npm install
+```
+
+### 2) Ejecutar en desarrollo
+```bash
+npm run start:dev
+```
+
+Cuando todo esté OK verás:
+```bash
+✅ API running on http://localhost:3000
+```
+
+---
+
+## 🔐 Autenticación
+
+Esta API usa JWT via:
+
+✅ `Authorization: Bearer <ACCESS_TOKEN>`
+
+---
+
+# ✅ Endpoints disponibles
+
+## 🟢 Auth
+
+### ✅ Register
+**POST** `/auth/register`
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+curl -X POST http://localhost:3000/auth/register   -H "Content-Type: application/json"   -d '{
+    "email": "user1@empresa.cl",
+    "displayName": "User 1",
+    "password": "123456",
+    "phone": "+56911111111",
+    "companySection": "TI",
+    "jobTitle": "Ingeniero"
+  }'
 ```
 
-## Run tests
+---
+
+### ✅ Login
+**POST** `/auth/login`
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/json"   -d '{
+    "email": "user1@empresa.cl",
+    "password": "123456"
+  }'
 ```
 
-## Deployment
+📌 Respuesta esperada:
+```json
+{
+  "user": {
+    "id": "uuid...",
+    "email": "user1@empresa.cl",
+    "displayName": "User 1"
+  },
+  "accessToken": "xxx",
+  "refreshToken": "yyy"
+}
+```
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+---
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### ✅ Refresh Token
+**POST** `/auth/refresh`
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+curl -X POST http://localhost:3000/auth/refresh   -H "Content-Type: application/json"   -d '{ "refreshToken": "TU_REFRESH_TOKEN" }'
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+### ✅ Me (perfil actual)
+**GET** `/auth/me`
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+curl -X GET http://localhost:3000/auth/me   -H "Authorization: Bearer TU_ACCESS_TOKEN"
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+### ✅ Logout
+**POST** `/auth/logout`
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+curl -X POST http://localhost:3000/auth/logout   -H "Authorization: Bearer TU_ACCESS_TOKEN"
+```
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## 👥 Users
 
-## License
+### ✅ Ping público
+**GET** `/users/ping`
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+curl -X GET http://localhost:3000/users/ping
+```
+
+---
+
+### ✅ Listar usuarios para chat (excluye el logeado)
+**GET** `/users`
+
+```bash
+curl -X GET http://localhost:3000/users   -H "Authorization: Bearer TU_ACCESS_TOKEN"
+```
+
+---
+
+### ✅ Perfil público por ID
+**GET** `/users/:id`
+
+```bash
+curl -X GET http://localhost:3000/users/UUID_USUARIO   -H "Authorization: Bearer TU_ACCESS_TOKEN"
+```
+
+---
+
+## 💬 Chat
+
+> Todos los endpoints de chat están protegidos con JWT.
+
+### ✅ Traer historial con un usuario
+**GET** `/chat/:peerId/messages?limit=200`
+
+```bash
+curl -X GET "http://localhost:3000/chat/UUID_PEER/messages?limit=200"   -H "Authorization: Bearer TU_ACCESS_TOKEN"
+```
+
+📌 Respuesta:
+```json
+{
+  "conversationId": "mongoObjectId...",
+  "messages": [
+    {
+      "id": "mongoId...",
+      "senderId": "uuid...",
+      "role": "user",
+      "text": "Hola!",
+      "createdAt": "2026-01-21T..."
+    }
+  ]
+}
+```
+
+---
+
+### ✅ Enviar mensaje
+**POST** `/chat/:peerId/messages`
+
+```bash
+curl -X POST "http://localhost:3000/chat/UUID_PEER/messages"   -H "Authorization: Bearer TU_ACCESS_TOKEN"   -H "Content-Type: application/json"   -d '{ "text": "Hola, ¿cómo estás?" }'
+```
+
+📌 Respuesta:
+```json
+{
+  "created": [
+    {
+      "id": "mongoId...",
+      "senderId": "uuid...",
+      "role": "user",
+      "text": "Hola, ¿cómo estás?"
+    }
+  ]
+}
+```
+
+---
+
+# 🤖 Asistente Corporativo (OpenAI)
+
+El asistente **responde automáticamente** solo cuando:
+
+✅ `peerId === ASSISTANT_USER_ID`
+
+Es decir, cuando el usuario le habla al **usuario especial del sistema**.
+
+📌 La IA usa:
+- un prompt de sistema (“Asistente Corporativo”)
+- los últimos **20 mensajes** del historial de la conversación
+- `OPENAI_MODEL` configurable (default: `gpt-4o-mini`)
+
+---
+
+## ✅ Cómo configurar el ASSISTANT_USER_ID
+
+1) Registra un usuario “Asistente”:
+```bash
+curl -X POST http://localhost:3000/auth/register   -H "Content-Type: application/json"   -d '{
+    "email": "asistente@empresa.cl",
+    "displayName": "Asistente Corporativo",
+    "password": "123456"
+  }'
+```
+
+2) Haz login y copia el `user.id`
+
+3) Pega ese id en tu `.env`:
+```env
+ASSISTANT_USER_ID=EL_UUID_DEL_USUARIO_ASISTENTE
+```
+
+4) Reinicia el backend:
+```bash
+npm run start:dev
+```
+
+---
+
+# 🛠️ Troubleshooting
+
+## ⚠️ Warning Mongoose: Duplicate schema index
+
+Si ves esto:
+
+```
+[MONGOOSE] Warning: Duplicate schema index on {"participants":1} found...
+```
+
+Significa que el índice `participants` fue declarado 2 veces:
+- `index: true` en el campo
+- y `schema.index({ participants: 1 })`
+
+✅ Solución: deja solo 1 definición.
+
+---
+
+# 📌 Notas de seguridad
+
+✅ Passwords hasheadas con `bcrypt`  
+✅ Refresh tokens se almacenan como hash (rotación)  
+✅ JWT via Authorization Header  
+✅ `.env` nunca debe subirse al repo
+
+---
+
+## 📄 Licencia
+Uso interno / desarrollo privado.
