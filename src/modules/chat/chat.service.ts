@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Conversation } from './schemas/conversation.schema';
 import { ChatMessage } from './schemas/message.schema';
 import { OpenAiService } from './openai/openai.service';
+import { ChatAttachmentsService } from './uploads/chat-attachments.service';
 
 /**
  * ✅ ChatService
@@ -22,7 +23,9 @@ export class ChatService {
     @InjectModel(ChatMessage.name)
     private readonly messageModel: Model<ChatMessage>,
 
-    private readonly openAiService: OpenAiService
+    private readonly openAiService: OpenAiService,
+
+    private readonly attachmentsService: ChatAttachmentsService,
   ) {
     this.assistantUserId = process.env.ASSISTANT_USER_ID || '';
 
@@ -61,6 +64,16 @@ export class ChatService {
       senderId: String(doc.senderId),
       role: doc.role,
       text: doc.text,
+      attachments: (doc.attachments ?? []).map((a: any) => ({
+        id: String(a.id),
+        kind: a.kind,
+        url: a.url,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        fileSize: a.fileSize,
+        width: a.width ?? null,
+        height: a.height ?? null,
+      })),
       createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
     };
   }
@@ -98,28 +111,46 @@ export class ChatService {
    * 2) Si peer == Asistente Corporativo => genera respuesta OpenAI y guarda
    * 3) Retorna mensajes creados (usuario + opcional IA)
    */
-  async sendMessage(userId: string, peerId: string, text: string) {
+  async sendMessage(
+    userId: string,
+    peerId: string,
+    text?: string,
+    files: Express.Multer.File[] = [],
+  ) {
     const conv = await this.getOrCreateConversation(userId, peerId);
+
+    const safeText = (text ?? '').trim();
+    const attachments = this.attachmentsService.mapUploadedFiles(files);
+
+    // ✅ Validación: texto o adjuntos
+    if (!safeText && attachments.length === 0) {
+      throw new BadRequestException('Mensaje vacío: debes enviar texto o al menos 1 archivo.');
+    }
 
     // ✅ 1) Guardar mensaje del usuario
     const userMsg = await this.messageModel.create({
       conversationId: String(conv._id),
       senderId: userId,
       role: 'user',
-      text,
+      text: safeText, // puede ser "" si es solo adjunto
+      attachments,
     });
 
     // ✅ 2) Actualizar lastMessageAt (CORRECTO EN MONGO)
     await this.conversationModel.updateOne(
       { _id: conv._id },
-      { $set: { lastMessageAt: new Date() } }
+      { $set: { lastMessageAt: new Date() } },
     );
 
     const created: any[] = [this.toApiMessage(userMsg)];
 
     // ✅ 3) Si el destinatario es el asistente => ChatGPT responde
     if (this.assistantUserId && peerId === this.assistantUserId) {
-      const assistantText = await this.generateAssistantReply(String(conv._id), text);
+      const assistantText = await this.generateAssistantReply(
+        String(conv._id),
+        safeText,
+        attachments.length,
+      );
 
       const assistantMsg = await this.messageModel.create({
         conversationId: String(conv._id),
@@ -132,7 +163,7 @@ export class ChatService {
 
       await this.conversationModel.updateOne(
         { _id: conv._id },
-        { $set: { lastMessageAt: new Date() } }
+        { $set: { lastMessageAt: new Date() } },
       );
     }
 
@@ -145,7 +176,11 @@ export class ChatService {
   /**
    * ✅ Genera respuesta del asistente con historial reciente
    */
-  private async generateAssistantReply(conversationId: string, userText: string): Promise<string> {
+  private async generateAssistantReply(
+    conversationId: string,
+    userText: string,
+    attachmentsCount: number,
+  ): Promise<string> {
     // ✅ Historial corto para contexto (últimos 20)
     const history = await this.messageModel
       .find({ conversationId })
@@ -167,10 +202,15 @@ No inventes datos internos.
     `.trim();
 
     try {
+      const extra =
+        attachmentsCount > 0
+          ? `\n\nNota: el usuario adjuntó ${attachmentsCount} archivo(s). Si necesitas que describa el contenido, pídelo.`
+          : '';
+
       return await this.openAiService.reply({
         system,
         historyText,
-        userText,
+        userText: `${userText}${extra}`,
       });
     } catch (err) {
       console.error('❌ Error llamando a OpenAI:', err);

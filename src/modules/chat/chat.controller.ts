@@ -8,12 +8,17 @@ import {
   Req,
   UnauthorizedException,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { chatMulterOptions } from './uploads/chat-multer.options';
+import { CHAT_MAX_FILES_PER_MESSAGE } from './uploads/chat-upload.constants';
 
 /**
  * ✅ Request autenticado
@@ -67,18 +72,28 @@ export class ChatController {
   }
 
   /**
-   * ✅ Enviar mensaje
+   * ✅ Enviar mensaje (texto y/o archivos)
+   *
+   * Soporta:
+   * - JSON: { "text": "hola" }
+   * - multipart/form-data:
+   *    - text: "hola"
+   *    - files: (N archivos)
+   *
    * POST /chat/:peerId/messages
-   * body: { "text": "hola" }
    */
   @Post(':peerId/messages')
+  @UseInterceptors(
+    FilesInterceptor('files', CHAT_MAX_FILES_PER_MESSAGE, chatMulterOptions()),
+  )
   async sendMessage(
     @Req() req: AuthRequest,
     @Param('peerId') peerId: string,
     @Body() dto: SendMessageDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const userId = this.getUserIdFromReq(req);
 
-    return this.chatService.sendMessage(userId, peerId, dto.text);
+    return this.chatService.sendMessage(userId, peerId, dto.text, files ?? []);
   }
 }

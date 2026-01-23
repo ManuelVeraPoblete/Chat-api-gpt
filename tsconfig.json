@@ -18,7 +18,8 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "types": ["node", "express", "multer"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test"]

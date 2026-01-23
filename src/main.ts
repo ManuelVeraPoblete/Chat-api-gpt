@@ -1,7 +1,12 @@
 import 'dotenv/config';
 
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import * as express from 'express';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
+import { MulterExceptionFilter } from './common/filters/multer-exception.filter';
 
 /**
  * ✅ Bootstrap principal de la API
@@ -10,6 +15,33 @@ import { AppModule } from './app.module';
  */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  /**
+   * ✅ Validaciones globales
+   * - whitelist: elimina campos extra (seguridad)
+   * - transform: castea tipos automáticamente
+   */
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: false,
+    }),
+  );
+
+  // ✅ Errores de Upload claros (Multer)
+  app.useGlobalFilters(new MulterExceptionFilter());
+
+  /**
+   * ✅ Servir archivos subidos públicamente
+   * - URL pública: /uploads/...
+   * - Ruta física: <projectRoot>/uploads
+   */
+  const uploadsRoot = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadsRoot)) {
+    mkdirSync(uploadsRoot, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsRoot));
 
   // ✅ Cierre correcto (PrismaService implementa OnModuleDestroy)
   app.enableShutdownHooks();

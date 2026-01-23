@@ -8,6 +8,7 @@ import { Conversation, ConversationSchema } from './schemas/conversation.schema'
 import { ChatMessage, ChatMessageSchema } from './schemas/message.schema';
 
 import { OpenAiService } from './openai/openai.service';
+import { ChatAttachmentsService } from './uploads/chat-attachments.service';
 
 /**
  * ✅ ChatModule
@@ -24,6 +25,6 @@ import { OpenAiService } from './openai/openai.service';
     ]),
   ],
   controllers: [ChatController],
-  providers: [ChatService, OpenAiService],
+  providers: [ChatService, OpenAiService, ChatAttachmentsService],
 })
 export class ChatModule {}

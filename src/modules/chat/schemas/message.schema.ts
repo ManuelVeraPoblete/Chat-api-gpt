@@ -9,6 +9,73 @@ import { Document } from 'mongoose';
 export type MessageRole = 'user' | 'assistant';
 
 /**
+ * ✅ Tipo de adjunto
+ * - IMAGE: imagen (jpg/png/webp)
+ * - FILE: documento (pdf/docx/xlsx/etc)
+ */
+export type AttachmentKind = 'IMAGE' | 'FILE';
+
+/**
+ * ✅ ChatAttachment
+ * Sub-documento embebido dentro de ChatMessage.
+ *
+ * Ventajas:
+ * - Lectura del historial rápida (un solo query)
+ * - No requiere colección aparte
+ */
+@Schema({ _id: false })
+export class ChatAttachment {
+  /**
+   * ✅ Id del adjunto (UUID)
+   */
+  @Prop({ required: true })
+  id!: string;
+
+  /**
+   * ✅ Tipo del adjunto (IMAGE | FILE)
+   */
+  @Prop({ required: true, enum: ['IMAGE', 'FILE'] })
+  kind!: AttachmentKind;
+
+  /**
+   * ✅ URL pública para ver/descargar
+   * Ej: /uploads/chat/xxx.jpg
+   */
+  @Prop({ required: true })
+  url!: string;
+
+  /**
+   * ✅ Nombre original del archivo
+   */
+  @Prop({ required: true })
+  fileName!: string;
+
+  /**
+   * ✅ MIME type
+   * Ej: image/jpeg, application/pdf
+   */
+  @Prop({ required: true })
+  mimeType!: string;
+
+  /**
+   * ✅ Tamaño en bytes
+   */
+  @Prop({ required: true })
+  fileSize!: number;
+
+  /**
+   * ✅ Metadata opcional para imágenes (si se quiere usar a futuro)
+   */
+  @Prop({ required: false })
+  width?: number;
+
+  @Prop({ required: false })
+  height?: number;
+}
+
+export const ChatAttachmentSchema = SchemaFactory.createForClass(ChatAttachment);
+
+/**
  * ✅ ChatMessage
  * Representa un mensaje persistido en Mongo.
  */
@@ -37,6 +104,13 @@ export class ChatMessage extends Document {
    */
   @Prop({ required: true })
   text!: string;
+
+  /**
+   * ✅ Adjuntos asociados al mensaje
+   * - Puede estar vacío
+   */
+  @Prop({ type: [ChatAttachmentSchema], default: [] })
+  attachments!: ChatAttachment[];
 }
 
 export const ChatMessageSchema = SchemaFactory.createForClass(ChatMessage);
