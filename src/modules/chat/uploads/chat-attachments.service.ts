@@ -1,64 +1,62 @@
 import { Injectable } from '@nestjs/common';
+import type { Express } from 'express';
 import { randomUUID } from 'crypto';
 
-import type { AttachmentKind, ChatAttachment } from '../schemas/message.schema';
+import type { ChatAttachmentKind } from '../schemas/message.schema';
+import { ChatAttachment } from '../schemas/message.schema';
 
 /**
  * ✅ ChatAttachmentsService
  *
- * Responsabilidad única (SRP):
- * - Convertir archivos subidos (Multer) a metadata persistible en Mongo
- * - Definir la URL pública que consumirá el frontend
+ * SRP:
+ * - Solo construye "attachments" persistibles para Mongo.
+ * - No guarda mensajes, no llama OpenAI, no conoce conversaciones.
  *
- * Nota:
- * - En el futuro, este service se puede reemplazar por S3/MinIO
- *   sin tocar ChatService (DIP).
+ * Soporta:
+ * - IMAGE / FILE desde multer
+ * - LOCATION (opcional) como adjunto
  */
 @Injectable()
 export class ChatAttachmentsService {
   /**
-   * ✅ Mapea archivos de Multer a attachments embebidos.
+   * ✅ Convierte multer files a attachments (IMAGE/FILE)
    */
-  mapUploadedFiles(files: Express.Multer.File[] | undefined | null): ChatAttachment[] {
-    if (!files || files.length === 0) return [];
-
+  buildFileAttachments(files: Express.Multer.File[] = []): ChatAttachment[] {
     return files.map((f) => {
-      const kind = this.detectKind(f.mimetype);
+      const mime = f.mimetype ?? 'application/octet-stream';
+      const kind: ChatAttachmentKind = mime.startsWith('image/') ? 'IMAGE' : 'FILE';
 
       return {
         id: randomUUID(),
         kind,
-        url: this.buildPublicUrl(f.filename),
-        fileName: this.sanitizeFileName(f.originalname),
-        mimeType: f.mimetype,
-        fileSize: f.size,
+        url: this.buildPublicFileUrl(f.filename),
+        fileName: f.originalname,
+        mimeType: mime,
+        fileSize: f.size ?? 0,
+        width: null,
+        height: null,
       };
     });
   }
 
   /**
-   * ✅ URL pública (se sirve desde main.ts con app.use('/uploads', static(...)))
+   * ✅ Crea un attachment de ubicación (LOCATION)
    */
-  private buildPublicUrl(fileNameOnDisk: string): string {
-    return `/uploads/chat/${fileNameOnDisk}`;
+  buildLocationAttachment(input: { latitude: number; longitude: number; label?: string }): ChatAttachment {
+    return {
+      id: randomUUID(),
+      kind: 'LOCATION',
+      latitude: input.latitude,
+      longitude: input.longitude,
+      label: input.label ?? null,
+    };
   }
 
   /**
-   * ✅ Detecta tipo del adjunto (Imagen vs Archivo)
+   * ✅ URL pública consistente con main.ts:
+   * app.useStaticAssets(process.cwd() + '/uploads', { prefix: '/uploads' })
    */
-  private detectKind(mimeType: string): AttachmentKind {
-    return mimeType?.startsWith('image/') ? 'IMAGE' : 'FILE';
-  }
-
-  /**
-   * ✅ Sanitiza nombre original para evitar caracteres raros
-   * - No confiamos en paths provenientes del cliente
-   */
-  private sanitizeFileName(name: string): string {
-    return String(name)
-      .replace(/\\/g, '_')
-      .replace(/\//g, '_')
-      .replace(/\s+/g, ' ')
-      .trim();
+  private buildPublicFileUrl(filename: string): string {
+    return `/uploads/chat/${filename}`;
   }
 }

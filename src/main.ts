@@ -1,25 +1,18 @@
-import 'dotenv/config';
-
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import * as express from 'express';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { AppModule } from './app.module';
-import { MulterExceptionFilter } from './common/filters/multer-exception.filter';
 
-/**
- * ✅ Bootstrap principal de la API
- * - enableShutdownHooks(): permite cerrar Prisma/Mongo correctamente al apagar la app
- * - listen en 0.0.0.0: permite acceder desde Postman / celular / emulador si expones puerto
- */
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { AppModule } from './app.module';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   /**
-   * ✅ Validaciones globales
-   * - whitelist: elimina campos extra (seguridad)
-   * - transform: castea tipos automáticamente
+   * ✅ Pipes globales (recomendado)
+   * - whitelist: elimina campos no permitidos
+   * - transform: castea query params, etc.
    */
   app.useGlobalPipes(
     new ValidationPipe({
@@ -29,35 +22,40 @@ async function bootstrap() {
     }),
   );
 
-  // ✅ Errores de Upload claros (Multer)
-  app.useGlobalFilters(new MulterExceptionFilter());
-
   /**
-   * ✅ Servir archivos subidos públicamente
-   * - URL pública: /uploads/...
-   * - Ruta física: <projectRoot>/uploads
+   * ✅ CORS (para web / emulator / mobile)
    */
-  const uploadsRoot = join(process.cwd(), 'uploads');
-  if (!existsSync(uploadsRoot)) {
-    mkdirSync(uploadsRoot, { recursive: true });
-  }
-  app.use('/uploads', express.static(uploadsRoot));
-
-  // ✅ Cierre correcto (PrismaService implementa OnModuleDestroy)
-  app.enableShutdownHooks();
-
-  // ✅ (Opcional) habilitar CORS si tu frontend lo necesita
   app.enableCors({
-    origin: true, // permite cualquier origen en dev
+    origin: true,
     credentials: true,
   });
 
-  const port = Number(process.env.PORT || 3000);
+  /**
+   * ✅ Servir archivos estáticos:
+   * - Carpeta: /uploads
+   * - URL pública: http://host:3000/uploads/...
+   *
+   * Esto habilita:
+   * - /uploads/chat/<filename>
+   */
+  const uploadsPath = join(process.cwd(), 'uploads');
 
-  await app.listen(port, '0.0.0.0');
+  // ✅ Asegura que exista la carpeta base para evitar errores
+  if (!existsSync(uploadsPath)) {
+    mkdirSync(uploadsPath, { recursive: true });
+  }
 
-  // ✅ log amigable
-  console.log(`✅ API running on http://localhost:${port}`);
+  app.useStaticAssets(uploadsPath, {
+    prefix: '/uploads',
+  });
+
+  /**
+   * ✅ Puerto
+   */
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  await app.listen(port, '0.0.0.0'); // ✅ IMPORTANTE para Android físico
+
+  console.log(`✅ API corriendo en http://0.0.0.0:${port}`);
 }
 
 bootstrap();

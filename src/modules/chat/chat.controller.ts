@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,18 +8,20 @@ import {
   Query,
   Req,
   UnauthorizedException,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
-  UploadedFiles,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { existsSync, mkdirSync } from 'fs';
+import { extname, join } from 'path';
+import { randomUUID } from 'crypto';
+
 import { ChatService } from './chat.service';
-import { SendMessageDto } from './dto/send-message.dto';
-import { chatMulterOptions } from './uploads/chat-multer.options';
-import { CHAT_MAX_FILES_PER_MESSAGE } from './uploads/chat-upload.constants';
 
 /**
  * ✅ Request autenticado
@@ -32,6 +35,15 @@ type AuthRequest = Request & {
     userId?: string;
     email?: string;
   };
+};
+
+/**
+ * ✅ Ubicación entrante (Front -> API)
+ */
+type LocationInput = {
+  latitude: number;
+  longitude: number;
+  label?: string;
 };
 
 @Controller('chat')
@@ -56,6 +68,55 @@ export class ChatController {
   }
 
   /**
+   * ✅ Parsea location que puede llegar de 2 maneras:
+   * - JSON normal: { location: { latitude, longitude } }
+   * - multipart/form-data: location viene como string JSON
+   */
+  private parseLocation(value: unknown): LocationInput | undefined {
+    if (!value) return undefined;
+
+    // ✅ multipart: location = '{"latitude":..,"longitude":..}'
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return this.ensureValidLocation(parsed);
+      } catch {
+        throw new BadRequestException('El campo location viene inválido (JSON no parseable)');
+      }
+    }
+
+    // ✅ JSON: location = object
+    if (typeof value === 'object') {
+      return this.ensureValidLocation(value as any);
+    }
+
+    throw new BadRequestException('El campo location tiene un formato inválido');
+  }
+
+  /**
+   * ✅ Validación de negocio (mínima)
+   * La validación completa y reglas finales las refuerza ChatService.
+   */
+  private ensureValidLocation(loc: any): LocationInput {
+    const latitude = Number(loc?.latitude);
+    const longitude = Number(loc?.longitude);
+
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      throw new BadRequestException('Latitud inválida');
+    }
+
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new BadRequestException('Longitud inválida');
+    }
+
+    return {
+      latitude,
+      longitude,
+      label: typeof loc?.label === 'string' ? loc.label : undefined,
+    };
+  }
+
+  /**
    * ✅ Traer historial completo
    * GET /chat/:peerId/messages?limit=200
    */
@@ -66,34 +127,73 @@ export class ChatController {
     @Query('limit') limit?: string,
   ) {
     const userId = this.getUserIdFromReq(req);
-    const parsedLimit = limit ? Number(limit) : 200;
 
-    return this.chatService.getMessages(userId, peerId, parsedLimit);
+    const parsedLimit = limit ? Number(limit) : 200;
+    const safeLimit = Number.isFinite(parsedLimit) ? parsedLimit : 200;
+
+    return this.chatService.getMessages(userId, peerId, safeLimit);
   }
 
   /**
-   * ✅ Enviar mensaje (texto y/o archivos)
-   *
-   * Soporta:
-   * - JSON: { "text": "hola" }
-   * - multipart/form-data:
-   *    - text: "hola"
-   *    - files: (N archivos)
+   * ✅ Enviar mensaje WhatsApp PRO
    *
    * POST /chat/:peerId/messages
+   *
+   * Soporta:
+   * ✅ JSON:
+   *   { "text": "hola", "location": { "latitude":.., "longitude":.. } }
+   *
+   * ✅ multipart/form-data:
+   *   text: "hola"
+   *   location: '{"latitude":..,"longitude":..}'
+   *   files: <file>[]   (hasta 10)
    */
   @Post(':peerId/messages')
   @UseInterceptors(
-    FilesInterceptor('files', CHAT_MAX_FILES_PER_MESSAGE, chatMulterOptions()),
+    FilesInterceptor('files', 10, {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          // ✅ Guardamos en /uploads/chat
+          const uploadPath = join(process.cwd(), 'uploads', 'chat');
+
+          // ✅ Asegura carpeta existente (Clean Code)
+          if (!existsSync(uploadPath)) {
+            mkdirSync(uploadPath, { recursive: true });
+          }
+
+          cb(null, uploadPath);
+        },
+        filename: (_req, file, cb) => {
+          // ✅ Nombre único + extensión original
+          const safeExt = extname(file.originalname || '').toLowerCase();
+          const name = `${Date.now()}-${randomUUID()}${safeExt}`;
+          cb(null, name);
+        },
+      }),
+
+      // ✅ Límite hard para no matar memoria
+      limits: {
+        fileSize: 25 * 1024 * 1024, // 25MB por archivo (WhatsApp-like)
+        files: 10,
+      },
+    }),
   )
   async sendMessage(
     @Req() req: AuthRequest,
     @Param('peerId') peerId: string,
-    @Body() dto: SendMessageDto,
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() body: any,
   ) {
     const userId = this.getUserIdFromReq(req);
 
-    return this.chatService.sendMessage(userId, peerId, dto.text, files ?? []);
+    const text = typeof body?.text === 'string' ? body.text : '';
+    const location = this.parseLocation(body?.location);
+
+    // ✅ Delegamos regla final al service (SOLID)
+    return this.chatService.sendMessage(userId, peerId, {
+      text,
+      files: files ?? [],
+      location,
+    });
   }
 }

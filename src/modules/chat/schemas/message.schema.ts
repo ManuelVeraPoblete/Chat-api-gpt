@@ -1,3 +1,5 @@
+// src/modules/chat/schemas/message.schema.ts
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
@@ -9,68 +11,65 @@ import { Document } from 'mongoose';
 export type MessageRole = 'user' | 'assistant';
 
 /**
- * ✅ Tipo de adjunto
- * - IMAGE: imagen (jpg/png/webp)
- * - FILE: documento (pdf/docx/xlsx/etc)
+ * ✅ Tipos de attachment:
+ * - IMAGE => imagen subida
+ * - FILE => documento/archivo subido
+ * - LOCATION => ubicación compartida (WhatsApp-like)
  */
-export type AttachmentKind = 'IMAGE' | 'FILE';
+export type ChatAttachmentKind = 'IMAGE' | 'FILE' | 'LOCATION';
 
 /**
- * ✅ ChatAttachment
- * Sub-documento embebido dentro de ChatMessage.
+ * ✅ Subdocumento: ChatAttachment
+ * Se guarda dentro del mensaje (Mongo).
  *
- * Ventajas:
- * - Lectura del historial rápida (un solo query)
- * - No requiere colección aparte
+ * Clean Code:
+ * - Unión "discriminada" por `kind`
+ * - Campos opcionales según el tipo
  */
 @Schema({ _id: false })
 export class ChatAttachment {
   /**
-   * ✅ Id del adjunto (UUID)
+   * ✅ Id propio del attachment (no dependemos del _id de Mongo)
+   * Esto ayuda mucho al front para listas y render.
    */
   @Prop({ required: true })
   id!: string;
 
-  /**
-   * ✅ Tipo del adjunto (IMAGE | FILE)
-   */
-  @Prop({ required: true, enum: ['IMAGE', 'FILE'] })
-  kind!: AttachmentKind;
+  @Prop({ required: true, enum: ['IMAGE', 'FILE', 'LOCATION'] })
+  kind!: ChatAttachmentKind;
+
+  // ✅ Para IMAGE / FILE
+  @Prop({ type: String })
+  url?: string;
+
+  @Prop({ type: String })
+  fileName?: string;
+
+  @Prop({ type: String })
+  mimeType?: string;
+
+  @Prop({ type: Number })
+  fileSize?: number;
 
   /**
-   * ✅ URL pública para ver/descargar
-   * Ej: /uploads/chat/xxx.jpg
+   * ✅ Metadata opcional de imagen
+   * IMPORTANTE: Mongoose no infiere bien unions => declarar type + default
    */
-  @Prop({ required: true })
-  url!: string;
+  @Prop({ type: Number, default: null })
+  width?: number | null;
 
-  /**
-   * ✅ Nombre original del archivo
-   */
-  @Prop({ required: true })
-  fileName!: string;
+  @Prop({ type: Number, default: null })
+  height?: number | null;
 
-  /**
-   * ✅ MIME type
-   * Ej: image/jpeg, application/pdf
-   */
-  @Prop({ required: true })
-  mimeType!: string;
+  // ✅ Para LOCATION
+  @Prop({ type: Number })
+  latitude?: number;
 
-  /**
-   * ✅ Tamaño en bytes
-   */
-  @Prop({ required: true })
-  fileSize!: number;
+  @Prop({ type: Number })
+  longitude?: number;
 
-  /**
-   * ✅ Metadata opcional para imágenes (si se quiere usar a futuro)
-   */
-  @Prop({ required: false })
-  width?: number;
-
-  @Prop({ required: false })
-  height?: number;
+  @Prop({ type: String, default: null })
+  label?: string | null;
 }
 
 export const ChatAttachmentSchema = SchemaFactory.createForClass(ChatAttachment);
@@ -101,13 +100,13 @@ export class ChatMessage extends Document {
 
   /**
    * ✅ Contenido del mensaje
+   * - Puede ser "" cuando el mensaje es solo adjuntos (WhatsApp-like)
    */
-  @Prop({ required: true })
+  @Prop({ required: false, default: '' })
   text!: string;
 
   /**
-   * ✅ Adjuntos asociados al mensaje
-   * - Puede estar vacío
+   * ✅ Adjuntos del mensaje (archivos o ubicación)
    */
   @Prop({ type: [ChatAttachmentSchema], default: [] })
   attachments!: ChatAttachment[];

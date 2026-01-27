@@ -10,6 +10,9 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
 
+// ✅ NUEVO: módulo de geolocalización
+import { LocationsModule } from './modules/locations/locations.module';
+
 @Module({
   imports: [
     /**
@@ -26,7 +29,7 @@ import { ChatModule } from './modules/chat/chat.module';
     }),
 
     /**
-     * ✅ MongoDB para guardar conversaciones
+     * ✅ MongoDB para guardar conversaciones y ahora también geolocalización
      * Se lee desde MONGO_URI en tu .env
      */
     MongooseModule.forRootAsync({
@@ -55,6 +58,9 @@ import { ChatModule } from './modules/chat/chat.module';
     UsersModule,
     AuthModule,
     ChatModule,
+
+    // ✅ NUEVO: geolocalización de usuarios conectados
+    LocationsModule,
   ],
 })
 export class AppModule {}
