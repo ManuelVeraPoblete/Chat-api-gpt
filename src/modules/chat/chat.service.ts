@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Express } from 'express';
 import { Model } from 'mongoose';
@@ -33,10 +33,14 @@ type SendMessageInput = {
  * ✅ ChatService
  * - Guarda / lee conversaciones desde Mongo
  * - Adjuntos reales (IMAGE/FILE/LOCATION)
- * - Si el destinatario es "Asistente Corporativo" => consulta OpenAI y guarda la respuesta
+ * - Si el destinatario es el usuario asistente => consulta OpenAI y guarda respuesta
+ *
+ * Mejora PRO:
+ * - Persiste aiThreadId por conversación (memoria real del Assistant)
  */
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
   private readonly assistantUserId: string;
 
   constructor(
@@ -48,15 +52,15 @@ export class ChatService {
 
     private readonly openAiService: OpenAiService,
   ) {
-    this.assistantUserId = process.env.ASSISTANT_USER_ID || '';
+    this.assistantUserId = (process.env.ASSISTANT_USER_ID || '').trim();
 
     if (!this.assistantUserId) {
-      console.warn('⚠️ ASSISTANT_USER_ID no está configurado. ChatGPT no responderá.');
+      this.logger.warn('⚠️ ASSISTANT_USER_ID no está configurado. ChatGPT no responderá.');
     }
   }
 
   /**
-   * ✅ Obtiene o crea conversación entre 2 participantes
+   * ✅ Obtiene o crea conversación entre 2 participantes.
    * Guardamos participants ORDENADO para encontrar siempre la misma conversación.
    */
   private async getOrCreateConversation(userId: string, peerId: string): Promise<Conversation> {
@@ -68,6 +72,7 @@ export class ChatService {
       conv = await this.conversationModel.create({
         participants,
         lastMessageAt: new Date(),
+        // aiThreadId queda null/undefined por defecto
       });
     }
 
@@ -76,7 +81,6 @@ export class ChatService {
 
   /**
    * ✅ Convierte un documento de Mongo a DTO que devuelve la API
-   * Incluye adjuntos (attachments) para el Front (WhatsApp-like)
    */
   private toApiMessage(doc: any) {
     return {
@@ -85,29 +89,25 @@ export class ChatService {
       senderId: String(doc.senderId),
       role: doc.role,
       text: doc.text ?? '',
-      attachments: doc.attachments ?? [], // ✅ NUEVO
+      attachments: doc.attachments ?? [],
       createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
     };
   }
 
   /**
    * ✅ GET /chat/:peerId/messages
-   * Devuelve historial del chat (incluye adjuntos)
    */
   async getMessages(userId: string, peerId: string, limit = 200) {
     const participants = [userId, peerId].sort();
 
     const conv = await this.conversationModel.findOne({ participants }).exec();
     if (!conv) {
-      return {
-        conversationId: null,
-        messages: [],
-      };
+      return { conversationId: null, messages: [] };
     }
 
     const msgs = await this.messageModel
       .find({ conversationId: String(conv._id) })
-      .sort({ createdAt: -1 }) // ✅ newest first (para FlatList inverted)
+      .sort({ createdAt: -1 }) // newest first (FlatList inverted)
       .limit(limit)
       .exec();
 
@@ -118,14 +118,11 @@ export class ChatService {
   }
 
   /**
-   * ✅ Construye adjuntos persistibles en Mongo:
-   * - IMAGE / FILE (desde multer)
-   * - LOCATION (desde dto/field)
+   * ✅ Construye adjuntos persistibles
    */
   private buildAttachments(files: Express.Multer.File[] = [], location?: LocationInput) {
     const attachments: any[] = [];
 
-    // ✅ Archivos físicos subidos (multer)
     for (const f of files) {
       const mime = f.mimetype ?? 'application/octet-stream';
       const isImage = mime.startsWith('image/');
@@ -133,14 +130,13 @@ export class ChatService {
       attachments.push({
         id: randomUUID(),
         kind: isImage ? 'IMAGE' : 'FILE',
-        url: this.buildPublicFileUrl(f.filename), // ✅ se sirve por /uploads/chat/...
+        url: this.buildPublicFileUrl(f.filename),
         fileName: f.originalname,
         mimeType: mime,
         fileSize: f.size ?? 0,
       });
     }
 
-    // ✅ Ubicación WhatsApp-like
     if (location) {
       attachments.push({
         id: randomUUID(),
@@ -156,7 +152,6 @@ export class ChatService {
 
   /**
    * ✅ Construye URL pública del archivo
-   * Importante: en main.ts vamos a servir /uploads como estático
    */
   private buildPublicFileUrl(filename: string): string {
     return `/uploads/chat/${filename}`;
@@ -164,8 +159,6 @@ export class ChatService {
 
   /**
    * ✅ Validación de payload (Clean Code)
-   * Reglas:
-   * - No permitimos mensaje completamente vacío (sin texto, sin archivos, sin ubicación)
    */
   private validateSendInput(input: SendMessageInput): void {
     const text = (input.text ?? '').trim();
@@ -191,10 +184,6 @@ export class ChatService {
 
   /**
    * ✅ POST /chat/:peerId/messages
-   *
-   * Soporta 2 formas (compatibilidad + PRO):
-   * 1) sendMessage(userId, peerId, "hola")                ✅ legacy
-   * 2) sendMessage(userId, peerId, { text, files, location }) ✅ WhatsApp PRO
    */
   async sendMessage(userId: string, peerId: string, text: string): Promise<{ created: any[] }>;
   async sendMessage(userId: string, peerId: string, input: SendMessageInput): Promise<{ created: any[] }>;
@@ -216,10 +205,10 @@ export class ChatService {
 
     const conv = await this.getOrCreateConversation(userId, peerId);
 
-    // ✅ Adjuntos listos para persistencia
-    const attachments = this.buildAttachments(payload.files ?? [], payload.location);
+    // ✅ DEBUG: confirmar match con assistant
+    this.logger.log(`sendMessage: userId=${userId} peerId=${peerId} assistantUserId=${this.assistantUserId}`);
 
-    // ✅ Texto puede ser "" si el mensaje es solo adjuntos (WhatsApp-like)
+    const attachments = this.buildAttachments(payload.files ?? [], payload.location);
     const safeText = (payload.text ?? '').trim();
 
     // ✅ 1) Guardar mensaje del usuario
@@ -228,10 +217,9 @@ export class ChatService {
       senderId: userId,
       role: 'user',
       text: safeText,
-      attachments, // ✅ NUEVO
+      attachments,
     });
 
-    // ✅ 2) Actualizar lastMessageAt
     await this.conversationModel.updateOne(
       { _id: conv._id },
       { $set: { lastMessageAt: new Date() } },
@@ -239,29 +227,34 @@ export class ChatService {
 
     const created: any[] = [this.toApiMessage(userMsg)];
 
-    /**
-     * ✅ 3) Si el destinatario es el asistente => ChatGPT responde
-     *
-     * Reglas:
-     * - Responde si:
-     *   - hay texto
-     *   - o hay ubicación/archivos (para confirmar recepción)
-     */
+    // ✅ 2) Respuesta IA solo si chateas con el usuario asistente
     if (this.assistantUserId && peerId === this.assistantUserId) {
-      // ✅ Texto para IA: si viene vacío, describimos adjuntos
       const aiUserText = safeText || this.describeUserPayloadForAi(payload, attachments);
 
-      const assistantText = await this.generateAssistantReply(String(conv._id), aiUserText);
+      const assistantText = await this.generateAssistantReply({
+        conversationId: String(conv._id),
+        userText: aiUserText,
+        aiThreadId: (conv as any).aiThreadId ?? null,
+      });
 
+      // ✅ Guardar msg assistant
       const assistantMsg = await this.messageModel.create({
         conversationId: String(conv._id),
         senderId: this.assistantUserId,
         role: 'assistant',
-        text: assistantText,
-        attachments: [], // ✅ asistente no adjunta por ahora
+        text: assistantText.text,
+        attachments: [],
       });
 
       created.push(this.toApiMessage(assistantMsg));
+
+      // ✅ Persistir threadId (memoria real)
+      if (assistantText.threadId && assistantText.threadId !== (conv as any).aiThreadId) {
+        await this.conversationModel.updateOne(
+          { _id: conv._id },
+          { $set: { aiThreadId: assistantText.threadId } },
+        );
+      }
 
       await this.conversationModel.updateOne(
         { _id: conv._id },
@@ -274,7 +267,6 @@ export class ChatService {
 
   /**
    * ✅ Describe payload cuando el usuario envía adjuntos sin texto.
-   * Esto mejora la respuesta del asistente sin inventar.
    */
   private describeUserPayloadForAi(payload: SendMessageInput, attachments: any[]): string {
     const parts: string[] = [];
@@ -289,7 +281,6 @@ export class ChatService {
       );
     }
 
-    // ✅ Fallback mínimo
     if (!parts.length && attachments?.length) {
       parts.push('El usuario envió adjuntos.');
     }
@@ -298,51 +289,88 @@ export class ChatService {
   }
 
   /**
-   * ✅ Genera respuesta del asistente con historial reciente
-   * Incluye una descripción de adjuntos para contexto.
+   * ✅ Genera respuesta del asistente con historial reciente.
+   * Devuelve text + threadId para persistir memoria del Assistant.
    */
-  private async generateAssistantReply(conversationId: string, userText: string): Promise<string> {
-    // ✅ Historial corto para contexto (últimos 20)
+  private async generateAssistantReply(params: {
+    conversationId: string;
+    userText: string;
+    aiThreadId: string | null;
+  }): Promise<{ text: string; threadId: string | null }> {
+    const { conversationId, userText, aiThreadId } = params;
+
     const history = await this.messageModel
       .find({ conversationId })
       .sort({ createdAt: -1 })
       .limit(20)
       .exec();
 
-    // ✅ orden correcto (oldest -> newest)
     const historyText = history
       .reverse()
       .map((m: any) => {
         const roleLabel = m.role === 'assistant' ? 'Asistente' : 'Usuario';
         const text = (m.text ?? '').trim();
         const attachmentHint = this.describeAttachmentsForHistory(m.attachments ?? []);
-
         const line = [text, attachmentHint].filter(Boolean).join(' ');
         return `${roleLabel}: ${line}`.trim();
       })
       .join('\n');
 
+    // ✅ ID del Assistant Entelgy (UI)
+    const entelgyAssistantId = process.env.OPENAI_ENTELGY_ASSISTANT_ID?.trim();
+
+    // ✅ System para RAG manual (solo aplica si NO hay assistantId)
     const system = `
-Eres el "Asistente Corporativo" de CorpChat.
-Responde en español, claro y profesional.
-Si falta información, pregunta de forma breve.
-No inventes datos internos.
-    `.trim();
+Eres un asistente corporativo interno de la empresa.
+Tu única fuente de verdad son los documentos internos proporcionados mediante file_search.
+
+REGLAS ABSOLUTAS:
+1. Está TERMINANTEMENTE PROHIBIDO usar conocimiento general fuera de los documentos.
+2. Solo puedes responder si la información aparece explícitamente en documentos internos.
+3. Si no encuentras info suficiente, responde EXACTAMENTE:
+"No tengo información en la base corporativa para responder esa consulta. Por favor contacta a RRHH o a la Mesa de Ayuda TI."
+4. No inventes políticas, procedimientos, fechas, personas, correos ni configuraciones.
+5. Si la pregunta es ambigua, pide una sola aclaración corta.
+
+Idioma: Español
+Formato: Claro, profesional, con pasos numerados cuando aplique.
+`.trim();
 
     try {
-      return await this.openAiService.reply({
+      // ✅ 1) Modo Assistant (Entelgy real con File Search del assistant)
+      if (entelgyAssistantId) {
+        // OJO: para persistir memoria, el OpenAiService debe soportar threadId reutilizable.
+        const resp = await this.openAiService.replyWithAssistant({
+          assistantId: entelgyAssistantId,
+          historyText,
+          userText,
+          threadId: aiThreadId, // ✅ reutiliza
+        } as any);
+
+        // Si tu OpenAiService aún no soporta threadId, devuelvo null por compatibilidad
+        if (typeof resp === 'string') {
+          return { text: resp, threadId: null };
+        }
+
+        return { text: resp.text, threadId: resp.threadId };
+      }
+
+      // ✅ 2) RAG manual (vector_store_id)
+      const manual = await this.openAiService.replyWithCompanyKnowledge({
         system,
         historyText,
         userText,
       });
+
+      return { text: manual, threadId: null };
     } catch (err) {
-      console.error('❌ Error llamando a OpenAI:', err);
-      return 'Lo siento, tuve un problema generando la respuesta. Intenta nuevamente.';
+      this.logger.error('❌ Error llamando a OpenAI', err as any);
+      return { text: 'Lo siento, tuve un problema generando la respuesta. Intenta nuevamente.', threadId: null };
     }
   }
 
   /**
-   * ✅ Describe adjuntos para historial IA (sin meter ruido)
+   * ✅ Describe adjuntos para historial IA
    */
   private describeAttachmentsForHistory(attachments: any[]): string {
     if (!attachments?.length) return '';
