@@ -1,34 +1,43 @@
-// src/modules/prisma/prisma.service.ts
-
 import 'dotenv/config';
 
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import type { Logger } from 'pino';
+
+import { redactDeep, summarizeResult } from '../../common/logging/redact.util';
+import { getTraceId, getUserId } from '../../common/logging/request-context';
 
 /**
- * ✅ PrismaService (Prisma 7 + MySQL via Driver Adapter)
+ * ✅ PrismaService (NestJS + Prisma 7 + MySQL via Driver Adapter)
  *
- * Prisma 7 requiere que el PrismaClient se construya con:
- * - adapter (para conexión directa con driver JS)
- * o accelerateUrl
- *
- * Para MySQL se usa @prisma/adapter-mariadb (compatible con MySQL).
+ * Objetivo:
+ * - Mantener tipado completo (this.prisma.user.findMany, etc.)
+ * - Prisma 7: usar $extends (NO $use)
+ * - Logs:
+ *   - SQL real + params (via $on('query'))
+ *   - args + result + duración por operación (via $extends)
+ *   - correlación con traceId/userId (AsyncLocalStorage)
  */
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  constructor() {
+export class PrismaService
+  extends PrismaClient<Prisma.PrismaClientOptions, 'query' | 'warn' | 'error'>
+  implements OnModuleInit, OnModuleDestroy
+{
+  constructor(
+    @Inject('APP_LOGGER')
+    private readonly logger: Logger,
+  ) {
     const databaseUrl = process.env.DATABASE_URL;
 
     if (!databaseUrl) {
       throw new Error('❌ DATABASE_URL no está definido en el archivo .env');
     }
 
-    // ✅ Convertimos mysql://... a partes compatibles con el adapter
-    // Esto evita problemas de parsing del adapter cuando se le pasa el string directo.
+    // ✅ Parse robusto de mysql://...
     const adapterConfig = PrismaService.parseMysqlUrl(databaseUrl);
 
-    // ✅ Adapter Prisma (MySQL/MariaDB) usando driver "mariadb"
+    // ✅ Adapter Prisma (MySQL/MariaDB)
     const adapter = new PrismaMariaDb({
       host: adapterConfig.host,
       port: adapterConfig.port,
@@ -38,29 +47,139 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       connectionLimit: adapterConfig.connectionLimit,
     });
 
+    // ✅ PrismaClient real (con eventos)
     super({
       adapter,
-      log: ['warn', 'error'], // ✅ puedes agregar 'query' si quieres debug
+      log: [
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'warn' },
+        { emit: 'event', level: 'error' },
+      ],
     });
+
+    /**
+     * ✅ SQL real ejecutado por Prisma
+     * - query + params + duration
+     * - incluye traceId/userId
+     */
+    this.$on('query', (e: Prisma.QueryEvent) => {
+      this.logger.info(
+        {
+          type: 'db_sql',
+          traceId: getTraceId(),
+          userId: getUserId(),
+          durationMs: e.duration,
+          query: e.query,
+          params: e.params,
+        },
+        'DB SQL',
+      );
+    });
+
+    this.$on('warn', (e: Prisma.LogEvent) => {
+      this.logger.warn(
+        {
+          type: 'db_warn',
+          traceId: getTraceId(),
+          userId: getUserId(),
+          message: e.message,
+        },
+        'DB Warn',
+      );
+    });
+
+    this.$on('error', (e: Prisma.LogEvent) => {
+      this.logger.error(
+        {
+          type: 'db_error',
+          traceId: getTraceId(),
+          userId: getUserId(),
+          message: e.message,
+        },
+        'DB Error',
+      );
+    });
+
+    /**
+     * ✅ Prisma 7: reemplazo de middleware ($use)
+     * Usamos $extends para envolver todas las operaciones y loguear:
+     * - args (variables)
+     * - result (resumido + redacted)
+     * - duración
+     */
+    const extended = this.$extends({
+      query: {
+        $allModels: {
+          $allOperations: async ({ model, operation, args, query }) => {
+            const start = Date.now();
+            const safeArgs = redactDeep(args);
+
+            try {
+              const result = await query(args);
+
+              this.logger.info(
+                {
+                  type: 'db_operation',
+                  traceId: getTraceId(),
+                  userId: getUserId(),
+                  model,
+                  action: operation,
+                  durationMs: Date.now() - start,
+                  args: safeArgs,
+                  result: summarizeResult(result),
+                },
+                'DB Operation',
+              );
+
+              return result;
+            } catch (err: any) {
+              this.logger.error(
+                {
+                  type: 'db_operation_error',
+                  traceId: getTraceId(),
+                  userId: getUserId(),
+                  model,
+                  action: operation,
+                  durationMs: Date.now() - start,
+                  args: safeArgs,
+                  error: {
+                    name: err?.name,
+                    message: err?.message,
+                    stack: err?.stack,
+                  },
+                },
+                'DB Operation Error',
+              );
+
+              throw err;
+            }
+          },
+        },
+      },
+    });
+
+    /**
+     * ✅ Clave para NO romper tu código:
+     * - PrismaService sigue "extendiendo PrismaClient" => TS ve .user, .message, etc.
+     * - Pero en runtime queremos que las llamadas usen el cliente extendido (logging args/result)
+     *
+     * Object.assign copia delegates (user, etc.) desde extended hacia this.
+     */
+    Object.assign(this, extended as any);
   }
 
-  /**
-   * ✅ Nest hook: conecta Prisma al iniciar el módulo
-   */
   async onModuleInit() {
     await this.$connect();
+    this.logger.info({ type: 'db_connected', adapter: 'mariadb' }, 'Prisma connected');
   }
 
-  /**
-   * ✅ Nest hook: desconecta Prisma al cerrar la app
-   */
   async onModuleDestroy() {
     await this.$disconnect();
+    this.logger.info({ type: 'db_disconnected' }, 'Prisma disconnected');
   }
 
   /**
    * ✅ Parser robusto de DATABASE_URL mysql://user:pass@host:3306/db
-   * Retorna un objeto listo para el adapter.
    */
   private static parseMysqlUrl(databaseUrl: string): {
     host: string;
@@ -74,16 +193,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     try {
       url = new URL(databaseUrl);
-    } catch (error) {
+    } catch {
       throw new Error(
         `❌ DATABASE_URL inválida. Debe tener formato mysql://USER:PASSWORD@HOST:PORT/DB\nValor actual: ${databaseUrl}`,
       );
     }
 
     if (url.protocol !== 'mysql:') {
-      throw new Error(
-        `❌ DATABASE_URL debe comenzar con mysql://\nValor actual: ${databaseUrl}`,
-      );
+      throw new Error(`❌ DATABASE_URL debe comenzar con mysql://\nValor actual: ${databaseUrl}`);
     }
 
     const host = url.hostname;
@@ -108,7 +225,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       user,
       password,
       database,
-      connectionLimit: 10, // ✅ límite seguro para dev/local
+      connectionLimit: 10,
     };
   }
 }
