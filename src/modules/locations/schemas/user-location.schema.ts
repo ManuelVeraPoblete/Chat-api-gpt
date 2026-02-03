@@ -1,51 +1,78 @@
+// src/modules/locations/schemas/user-location.schema.ts
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 /**
- * ✅ UserLocation
- * Guarda la última ubicación reportada por un usuario.
+ * ✅ UserLocationDocument
+ * Documento Mongo tipado para Mongoose.
+ * - Incluye campos del schema + Document + timestamps (createdAt/updatedAt).
+ */
+export type UserLocationDocument = UserLocation & Document;
+
+/**
+ * ✅ UserLocation Schema (Mongo)
  *
- * Importante (seguridad/privacidad):
- * - No se trackea si el usuario no comparte
- * - La ubicación live debe expirar automáticamente (liveUntil)
+ * Reglas:
+ * - 1 documento por usuario => userId único.
+ * - updatedAt se usa para definir "activo" (cutoff por segundos).
+ *
+ * timestamps:
+ * - createdAt y updatedAt se gestionan automáticamente por Mongoose.
  */
 @Schema({
-  collection: 'user_locations',
-  timestamps: true, // ✅ agrega createdAt y updatedAt automáticamente
+  timestamps: true,
+  collection: 'user_locations', // ✅ nombre explícito (opcional, pero recomendado)
 })
 export class UserLocation {
   /**
-   * ✅ ID del usuario (MySQL - Prisma)
-   * Lo mantenemos único para hacer UPSERT (1 ubicación por usuario)
+   * ✅ Identificador del usuario (1 doc por usuario)
+   * - unique + index para upsert eficiente
    */
-  @Prop({ required: true, unique: true, index: true })
+  @Prop({
+    required: true,
+    unique: true,
+    index: true,
+    type: String,
+  })
   userId!: string;
 
-  @Prop({ required: true })
+  /**
+   * ✅ Coordenadas
+   */
+  @Prop({ required: true, type: Number })
   latitude!: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Number })
   longitude!: number;
 
   /**
-   * ✅ Precisión del GPS (si el móvil lo entrega)
+   * ✅ Precisión (metros, si el device la entrega)
    */
-  @Prop({ required: false })
+  @Prop({ required: false, type: Number })
   accuracy?: number;
 
   /**
-   * ✅ Si el usuario está compartiendo live location
+   * ✅ Live location:
+   * - isLive=true indica que el usuario está compartiendo ubicación en vivo
+   * - liveUntil define vigencia
    */
-  @Prop({ default: false })
+  @Prop({ required: true, default: false, type: Boolean })
   isLive!: boolean;
 
-  /**
-   * ✅ Expiración de live location
-   * Si liveUntil < now => ya no se considera activo
-   */
-  @Prop({ required: false })
+  @Prop({ required: false, type: Date })
   liveUntil?: Date;
+
+  /**
+   * ⚠️ createdAt y updatedAt se generan por timestamps:true
+   * No se declaran aquí, pero existen en el documento.
+   */
 }
 
-export type UserLocationDocument = UserLocation & Document;
 export const UserLocationSchema = SchemaFactory.createForClass(UserLocation);
+
+/**
+ * ✅ Índices adicionales (opcionales pero útiles)
+ * - liveUntil para queries de activos en vivo
+ */
+UserLocationSchema.index({ liveUntil: 1 });

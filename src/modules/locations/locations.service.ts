@@ -1,3 +1,5 @@
+// src/modules/locations/locations.service.ts
+
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -27,6 +29,10 @@ export class LocationsService {
    * Soporta:
    * - ubicación puntual (isLive=false)
    * - live location (isLive=true + liveMinutes)
+   *
+   * ⚠️ Importante (MongoDB):
+   * - NO se debe incluir `userId` en $set si `userId` ya va en el filtro del updateOne
+   * - Para upsert, userId debe ir en $setOnInsert
    */
   async upsertMyLocation(userId: string, dto: UpdateLocationDto) {
     const isLive = dto.isLive === true;
@@ -37,8 +43,11 @@ export class LocationsService {
     const now = new Date();
     const liveUntil = isLive ? new Date(now.getTime() + liveMinutes! * 60_000) : undefined;
 
-    const update: Partial<UserLocation> = {
-      userId,
+    /**
+     * ✅ Update seguro (sin userId en $set)
+     * - userId SOLO en filtro y $setOnInsert
+     */
+    const updateSet: Partial<UserLocation> = {
       latitude: dto.latitude,
       longitude: dto.longitude,
       accuracy: dto.accuracy,
@@ -46,14 +55,13 @@ export class LocationsService {
       liveUntil,
     };
 
-    /**
-     * ✅ Upsert: si no existe, lo crea, si existe lo actualiza.
-     * - setOnInsert asegura el userId en creación.
-     */
     await this.locationModel.updateOne(
-      { userId },
+      { userId }, // ✅ filtro por userId
       {
-        $set: update,
+        // ✅ Actualiza campos variables
+        $set: updateSet,
+
+        // ✅ Solo si crea el documento por primera vez
         $setOnInsert: { userId },
       },
       { upsert: true },
