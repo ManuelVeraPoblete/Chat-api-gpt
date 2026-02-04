@@ -1,6 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 
+/**
+ * ✅ OpenAiService
+ *
+ * - Mantiene TODA tu implementación actual
+ * - Se agrega SOLO un método adapter:
+ *   generateAssistantReply()
+ *   para que ChatService no tenga errores de tipado
+ *
+ * ❌ No se rompe nada existente
+ * ✅ Clean Architecture
+ */
 @Injectable()
 export class OpenAiService {
   private readonly client: OpenAI;
@@ -24,6 +35,42 @@ export class OpenAiService {
     if (!this.vectorStoreId) {
       this.logger.warn('⚠️ OPENAI_VECTOR_STORE_ID no configurado (RAG manual deshabilitado)');
     }
+  }
+
+  // ===========================================================================
+  // ✅ ADAPTER PARA ChatService (SOLUCIÓN AL ERROR)
+  // ===========================================================================
+
+  /**
+   * ✅ Método esperado por ChatService
+   * Actúa como ADAPTER hacia replyWithAssistant()
+   */
+  async generateAssistantReply(params: {
+    conversationId: string;
+    userText: string;
+    aiThreadId: string | null;
+  }): Promise<{ text: string; threadId?: string | null }> {
+    const assistantId = process.env.OPENAI_ASSISTANT_ID;
+
+    if (!assistantId) {
+      this.logger.error('❌ OPENAI_ASSISTANT_ID no configurado');
+      return {
+        text: OpenAiService.NO_KB_MESSAGE,
+        threadId: params.aiThreadId ?? null,
+      };
+    }
+
+    const result = await this.replyWithAssistant({
+      assistantId,
+      historyText: '', // 🧠 historial ya lo maneja ChatService
+      userText: params.userText,
+      threadId: params.aiThreadId,
+    });
+
+    return {
+      text: result.text,
+      threadId: result.threadId,
+    };
   }
 
   // ===========================================================================
@@ -127,7 +174,7 @@ export class OpenAiService {
       assistant_id: assistantId,
     });
 
-    // ✅ Esperar run (firma correcta para openai@6.16.0)
+    // ✅ Esperar run
     const finalRun = await this.waitRun(threadId, run.id);
 
     if (finalRun.status !== 'completed') {
@@ -141,14 +188,13 @@ export class OpenAiService {
     const raw =
       this.extractAssistantText(last) ?? OpenAiService.NO_KB_MESSAGE;
 
-    // 🚫 LIMPIEZA DEFINITIVA DE REFERENCIAS
     const clean = this.removeDocumentReferences(raw);
 
     return { text: clean, threadId };
   }
 
   // ===========================================================================
-  // ✅ POLLING RUN (SDK openai@6.16.0)
+  // ✅ POLLING RUN
   // ===========================================================================
 
   private async waitRun(threadId: string, runId: string) {
@@ -156,7 +202,6 @@ export class OpenAiService {
     const start = Date.now();
 
     while (true) {
-      // ⚠️ Firma real del SDK
       const run = await (this.client.beta.threads.runs.retrieve as any)(
         runId,
         { thread_id: threadId },
@@ -191,25 +236,16 @@ export class OpenAiService {
 
   /**
    * 🚫 ELIMINA TODA REFERENCIA A DOCUMENTOS
-   * - 
-   * - [archivo.pdf]
-   * - (archivo.docx)
    */
   private removeDocumentReferences(text: string): string {
     if (!text) return text;
 
     let cleaned = text;
 
-    // Elimina 【...】
     cleaned = cleaned.replace(/【[^】]*】/g, '');
-
-    // Elimina [ ... ]
     cleaned = cleaned.replace(/\[[^\]]*]/g, '');
-
-    // Elimina (archivo.pdf / docx / etc)
     cleaned = cleaned.replace(/\([^)]*\.(pdf|docx|xlsx|pptx)\)/gi, '');
 
-    // Limpieza final
     cleaned = cleaned.replace(/\s{2,}/g, ' ');
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
 

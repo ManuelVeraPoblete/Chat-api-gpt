@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import type { Request } from 'express';
+import type { Request, Express } from 'express'; // ✅ IMPORTANTE: Express para Multer types
 
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -44,6 +44,13 @@ type LocationInput = {
   latitude: number;
   longitude: number;
   label?: string;
+};
+
+/**
+ * ✅ Body para unread-counts
+ */
+type UnreadCountsBody = {
+  peerIds: string[];
 };
 
 @Controller('chat')
@@ -113,6 +120,27 @@ export class ChatController {
       latitude,
       longitude,
       label: typeof loc?.label === 'string' ? loc.label : undefined,
+    };
+  }
+
+  /**
+   * ✅ NUEVO: Conteo de no-leídos por peer (Home)
+   * POST /chat/unread-counts
+   *
+   * Body:
+   * { "peerIds": ["uuid-1","uuid-2"] }
+   *
+   * ✅ IMPORTANTE:
+   * - Debe ir ANTES de rutas con :peerId para evitar ambigüedades.
+   */
+  @Post('unread-counts')
+  async getUnreadCounts(@Req() req: AuthRequest, @Body() body: UnreadCountsBody) {
+    const userId = this.getUserIdFromReq(req);
+
+    const peerIds = Array.isArray(body?.peerIds) ? body.peerIds.map(String) : [];
+
+    return {
+      counts: await this.chatService.getUnreadCounts(userId, peerIds),
     };
   }
 
