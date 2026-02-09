@@ -8,7 +8,7 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { UserLocation, UserLocationDocument } from './schemas/user-location.schema';
 
 /**
- * ✅ LocationsService
+ *  LocationsService
  *
  * Responsabilidad única (SRP):
  * - Gestionar persistencia y reglas de negocio de ubicaciones.
@@ -25,7 +25,7 @@ export class LocationsService {
   ) {}
 
   /**
-   * ✅ Actualiza (upsert) la ubicación del usuario autenticado.
+   *  Actualiza (upsert) la ubicación del usuario autenticado.
    * Soporta:
    * - ubicación puntual (isLive=false)
    * - live location (isLive=true + liveMinutes)
@@ -37,14 +37,14 @@ export class LocationsService {
   async upsertMyLocation(userId: string, dto: UpdateLocationDto) {
     const isLive = dto.isLive === true;
 
-    // ✅ Si pide live y no manda minutos, usamos un default razonable (15 min)
+    //  Si pide live y no manda minutos, usamos un default razonable (15 min)
     const liveMinutes = isLive ? dto.liveMinutes ?? 15 : undefined;
 
     const now = new Date();
     const liveUntil = isLive ? new Date(now.getTime() + liveMinutes! * 60_000) : undefined;
 
     /**
-     * ✅ Update seguro (sin userId en $set)
+     *  Update seguro (sin userId en $set)
      * - userId SOLO en filtro y $setOnInsert
      */
     const updateSet: Partial<UserLocation> = {
@@ -56,23 +56,23 @@ export class LocationsService {
     };
 
     await this.locationModel.updateOne(
-      { userId }, // ✅ filtro por userId
+      { userId }, //  filtro por userId
       {
-        // ✅ Actualiza campos variables
+        //  Actualiza campos variables
         $set: updateSet,
 
-        // ✅ Solo si crea el documento por primera vez
+        //  Solo si crea el documento por primera vez
         $setOnInsert: { userId },
       },
       { upsert: true },
     );
 
-    // ✅ Retornamos el estado actualizado
+    //  Retornamos el estado actualizado
     return this.locationModel.findOne({ userId }).lean().exec();
   }
 
   /**
-   * ✅ Detener compartir ubicación
+   *  Detener compartir ubicación
    * - Marca isLive=false y borra liveUntil
    */
   async stopSharing(userId: string) {
@@ -88,7 +88,7 @@ export class LocationsService {
   }
 
   /**
-   * ✅ Lista ubicaciones activas
+   *  Lista ubicaciones activas
    *
    * Definición "activo/conectado":
    * - updatedAt >= now - maxAgeSeconds  (ej: 120s)
@@ -113,7 +113,7 @@ export class LocationsService {
       .lean()
       .exec();
 
-    // ✅ Retorno limpio (DTO-like)
+    //  Retorno limpio (DTO-like)
     return docs.map((d: any) => ({
       userId: d.userId,
       latitude: d.latitude,

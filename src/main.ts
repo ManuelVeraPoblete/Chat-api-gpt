@@ -10,7 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   /**
-   * ✅ Pipes globales (recomendado)
+   *  Pipes globales (recomendado)
    * - whitelist: elimina campos no permitidos
    * - transform: castea query params, etc.
    */
@@ -23,7 +23,7 @@ async function bootstrap() {
   );
 
   /**
-   * ✅ CORS (para web / emulator / mobile)
+   *  CORS (para web / emulator / mobile)
    */
   app.enableCors({
     origin: true,
@@ -31,7 +31,7 @@ async function bootstrap() {
   });
 
   /**
-   * ✅ Servir archivos estáticos:
+   *  Servir archivos estáticos:
    * - Carpeta: /uploads
    * - URL pública: http://host:3000/uploads/...
    *
@@ -40,7 +40,7 @@ async function bootstrap() {
    */
   const uploadsPath = join(process.cwd(), 'uploads');
 
-  // ✅ Asegura que exista la carpeta base para evitar errores
+  //  Asegura que exista la carpeta base para evitar errores
   if (!existsSync(uploadsPath)) {
     mkdirSync(uploadsPath, { recursive: true });
   }
@@ -50,12 +50,12 @@ async function bootstrap() {
   });
 
   /**
-   * ✅ Puerto
+   *  Puerto
    */
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-  await app.listen(port, '0.0.0.0'); // ✅ IMPORTANTE para Android físico
+  await app.listen(port, '0.0.0.0'); //  IMPORTANTE para Android físico
 
-  console.log(`✅ API corriendo en http://0.0.0.0:${port}`);
+  console.log(` API corriendo en http://0.0.0.0:${port}`);
 }
 
 bootstrap();

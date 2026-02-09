@@ -9,7 +9,7 @@ import { ChatMessage } from './schemas/message.schema';
 import { OpenAiService } from './openai/openai.service';
 
 /**
- * ✅ Tipado ubicación entrante (frontend -> backend)
+ *  Tipado ubicación entrante (frontend -> backend)
  */
 type LocationInput = {
   latitude: number;
@@ -18,7 +18,7 @@ type LocationInput = {
 };
 
 /**
- * ✅ Payload profesional para soportar WhatsApp-like:
+ *  Payload profesional para soportar WhatsApp-like:
  * - text opcional
  * - files opcional (multer)
  * - location opcional (geo)
@@ -30,12 +30,12 @@ type SendMessageInput = {
 };
 
 /**
- * ✅ ChatService
+ *  ChatService
  * - Guarda / lee conversaciones desde Mongo
  * - Adjuntos reales (IMAGE/FILE/LOCATION)
  * - Si el destinatario es el usuario asistente => consulta OpenAI y guarda respuesta
  *
- * ✅ NUEVO:
+ *  NUEVO:
  * - readStates: lastReadAt por participante => badge de no-leídos
  */
 @Injectable()
@@ -60,10 +60,10 @@ export class ChatService {
   }
 
   /**
-   * ✅ Obtiene o crea conversación entre 2 participantes.
+   *  Obtiene o crea conversación entre 2 participantes.
    * Guardamos participants ORDENADO para encontrar siempre la misma conversación.
    *
-   * ✅ Además inicializa readStates (no-leídos) para ambos participantes.
+   *  Además inicializa readStates (no-leídos) para ambos participantes.
    */
   private async getOrCreateConversation(userId: string, peerId: string): Promise<Conversation> {
     const participants = [userId, peerId].sort();
@@ -81,7 +81,7 @@ export class ChatService {
         // aiThreadId queda null/undefined por defecto
       });
     } else {
-      // ✅ Harden: si la conversación existía de antes (sin readStates), la arreglamos.
+      //  Harden: si la conversación existía de antes (sin readStates), la arreglamos.
       const hasUser = (conv as any).readStates?.some((r: any) => r.userId === userId);
       const hasPeer = (conv as any).readStates?.some((r: any) => r.userId === peerId);
 
@@ -102,7 +102,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Marca como leído "hasta ahora" para un usuario dentro de una conversación.
+   *  Marca como leído "hasta ahora" para un usuario dentro de una conversación.
    * - Si no existe el readState, lo crea.
    */
   private async markConversationRead(conversationId: string, userId: string, at: Date = new Date()): Promise<void> {
@@ -123,7 +123,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Obtiene lastReadAt del usuario en la conversación
+   *  Obtiene lastReadAt del usuario en la conversación
    */
   private getLastReadAt(conv: any, userId: string): Date {
     const rs = (conv?.readStates ?? []).find((r: any) => String(r.userId) === String(userId));
@@ -132,7 +132,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Convierte un documento de Mongo a DTO que devuelve la API
+   *  Convierte un documento de Mongo a DTO que devuelve la API
    */
   private toApiMessage(doc: any) {
     return {
@@ -147,7 +147,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ GET /chat/:peerId/messages
+   *  GET /chat/:peerId/messages
    * - Devuelve historial
    * - Marca la conversación como leída para el usuario que consulta (badge se limpia)
    */
@@ -165,7 +165,7 @@ export class ChatService {
       .limit(limit)
       .exec();
 
-    // ✅ Importante: al abrir el chat, marcamos leído
+    //  Importante: al abrir el chat, marcamos leído
     await this.markConversationRead(String(conv._id), userId, new Date());
 
     return {
@@ -175,7 +175,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Construye adjuntos persistibles
+   *  Construye adjuntos persistibles
    */
   private buildAttachments(files: Express.Multer.File[] = [], location?: LocationInput) {
     const attachments: any[] = [];
@@ -208,14 +208,14 @@ export class ChatService {
   }
 
   /**
-   * ✅ Construye URL pública del archivo
+   *  Construye URL pública del archivo
    */
   private buildPublicFileUrl(filename: string): string {
     return `/uploads/chat/${filename}`;
   }
 
   /**
-   * ✅ Validación de payload (Clean Code)
+   *  Validación de payload (Clean Code)
    */
   private validateSendInput(input: SendMessageInput): void {
     const text = (input.text ?? '').trim();
@@ -240,7 +240,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ POST /chat/:peerId/messages
+   *  POST /chat/:peerId/messages
    */
   async sendMessage(userId: string, peerId: string, text: string): Promise<{ created: any[] }>;
   async sendMessage(userId: string, peerId: string, input: SendMessageInput): Promise<{ created: any[] }>;
@@ -262,13 +262,13 @@ export class ChatService {
 
     const conv = await this.getOrCreateConversation(userId, peerId);
 
-    // ✅ DEBUG: confirmar match con assistant
+    //  DEBUG: confirmar match con assistant
     this.logger.log(`sendMessage: userId=${userId} peerId=${peerId} assistantUserId=${this.assistantUserId}`);
 
     const attachments = this.buildAttachments(payload.files ?? [], payload.location);
     const safeText = (payload.text ?? '').trim();
 
-    // ✅ 1) Guardar mensaje del usuario
+    //  1) Guardar mensaje del usuario
     const userMsg = await this.messageModel.create({
       conversationId: String(conv._id),
       senderId: userId,
@@ -281,12 +281,12 @@ export class ChatService {
       .updateOne({ _id: conv._id }, { $set: { lastMessageAt: new Date() } })
       .exec();
 
-    // ✅ El emisor siempre "leyó" hasta este punto (evita badge en su propio chat)
+    //  El emisor siempre "leyó" hasta este punto (evita badge en su propio chat)
     await this.markConversationRead(String(conv._id), userId, new Date());
 
     const created: any[] = [this.toApiMessage(userMsg)];
 
-    // ✅ 2) Respuesta IA solo si chateas con el usuario asistente
+    //  2) Respuesta IA solo si chateas con el usuario asistente
     if (this.assistantUserId && peerId === this.assistantUserId) {
       const aiUserText = safeText || this.describeUserPayloadForAi(payload, attachments);
 
@@ -296,7 +296,7 @@ export class ChatService {
         aiThreadId: (conv as any).aiThreadId ?? null,
       });
 
-      // ✅ Guardar msg assistant
+      //  Guardar msg assistant
       const assistantMsg = await this.messageModel.create({
         conversationId: String(conv._id),
         senderId: this.assistantUserId,
@@ -307,10 +307,10 @@ export class ChatService {
 
       created.push(this.toApiMessage(assistantMsg));
 
-      // ✅ El assistant también "lee" su propia conversación
+      //  El assistant también "lee" su propia conversación
       await this.markConversationRead(String(conv._id), this.assistantUserId, new Date());
 
-      // ✅ Persistir threadId (memoria real)
+      //  Persistir threadId (memoria real)
       if (assistantText.threadId && assistantText.threadId !== (conv as any).aiThreadId) {
         await this.conversationModel.updateOne(
           { _id: conv._id },
@@ -328,7 +328,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Obtiene conteo de mensajes no leídos por peer.
+   *  Obtiene conteo de mensajes no leídos por peer.
    *
    * Regla:
    * - No-leído = mensajes en la conversación cuya fecha > lastReadAt del usuario
@@ -342,10 +342,10 @@ export class ChatService {
     const result: Record<string, number> = {};
     for (const peerId of uniquePeers) result[peerId] = 0;
 
-    // ✅ Seguridad: si no hay peers, retornamos rápido
+    //  Seguridad: si no hay peers, retornamos rápido
     if (uniquePeers.length === 0) return result;
 
-    // ✅ Implementación simple y robusta (N peers => N consultas)
+    //  Implementación simple y robusta (N peers => N consultas)
     // Para grandes volúmenes se puede optimizar con aggregate,
     // pero en mobile + lista acotada es suficiente.
     for (const peerId of uniquePeers) {
@@ -374,7 +374,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Describe payload cuando el usuario envía adjuntos sin texto.
+   *  Describe payload cuando el usuario envía adjuntos sin texto.
    */
   private describeUserPayloadForAi(payload: SendMessageInput, attachments: any[]): string {
     const parts: string[] = [];
@@ -399,7 +399,7 @@ export class ChatService {
   }
 
   /**
-   * ✅ Genera respuesta del assistant (OpenAI)
+   *  Genera respuesta del assistant (OpenAI)
    * NOTA: tu implementación original sigue igual, aquí no la toqué.
    */
   private async generateAssistantReply(input: {
@@ -407,7 +407,7 @@ export class ChatService {
     userText: string;
     aiThreadId: string | null;
   }): Promise<{ text: string; threadId?: string | null }> {
-    // ✅ Delegamos en OpenAiService (ya existente)
+    //  Delegamos en OpenAiService (ya existente)
     return this.openAiService.generateAssistantReply(input);
   }
 }

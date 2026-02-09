@@ -16,7 +16,7 @@ import { LocationsService } from './locations.service';
 import { UpdateLocationDto } from './dto/update-location.dto';
 
 /**
- * ✅ Request autenticado
+ *  Request autenticado
  * Passport deja el payload del JWT en req.user.
  */
 type AuthRequest = Request & {
@@ -34,7 +34,7 @@ export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
   /**
-   * ✅ Extrae el userId del request (sub/id/userId)
+   *  Extrae el userId del request (sub/id/userId)
    */
   private getUserId(req: AuthRequest): string {
     const userId = req.user?.sub ?? req.user?.id ?? req.user?.userId;
@@ -49,7 +49,7 @@ export class LocationsController {
   }
 
   /**
-   * ✅ POST /locations/me
+   *  POST /locations/me
    * Body: { latitude, longitude, accuracy?, isLive?, liveMinutes? }
    */
   @Post('me')
@@ -59,7 +59,7 @@ export class LocationsController {
   }
 
   /**
-   * ✅ DELETE /locations/me
+   *  DELETE /locations/me
    * Detiene compartir ubicación live
    */
   @Delete('me')
@@ -69,7 +69,7 @@ export class LocationsController {
   }
 
   /**
-   * ✅ GET /locations/active?maxAgeSeconds=120
+   *  GET /locations/active?maxAgeSeconds=120
    * Lista usuarios conectados/activos con ubicación reciente.
    */
   @Get('active')

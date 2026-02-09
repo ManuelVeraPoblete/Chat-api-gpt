@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
 /**
- * ✅ PrismaModule:
+ *  PrismaModule:
  * - Provee PrismaService a toda la app
  */
 @Module({

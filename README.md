@@ -1,12 +1,12 @@
-# ✅ CorpChat Backend API (NestJS)
+#  CorpChat Backend API (NestJS)
 
 Backend oficial de **CorpChat**, una API REST construida con **NestJS** que entrega:
 
-✅ Autenticación JWT (Access + Refresh)  
-✅ Gestión de usuarios (Prisma + MariaDB/MySQL)  
-✅ Chat persistente (MongoDB + Mongoose)  
-✅ Integración con **OpenAI** para el “Asistente Corporativo”  
-✅ Arquitectura modular y clean code (SRP, DTOs, Guards, Services)
+ Autenticación JWT (Access + Refresh)  
+ Gestión de usuarios (Prisma + MariaDB/MySQL)  
+ Chat persistente (MongoDB + Mongoose)  
+ Integración con **OpenAI** para el “Asistente Corporativo”  
+ Arquitectura modular y clean code (SRP, DTOs, Guards, Services)
 
 ---
 
@@ -40,7 +40,7 @@ src/
 
 ---
 
-## ✅ Requisitos previos
+##  Requisitos previos
 
 Debes tener instalados y corriendo:
 
@@ -92,7 +92,7 @@ OPENAI_MODEL=gpt-4o-mini
 ASSISTANT_USER_ID=UUID_DEL_USUARIO_ASISTENTE
 ```
 
-✅ **IMPORTANTE**
+ **IMPORTANTE**
 - `OPENAI_API_KEY` **solo debe existir en el backend**
 - `ASSISTANT_USER_ID` es el **id del usuario “Asistente Corporativo”** (en tu tabla User SQL)
 
@@ -112,7 +112,7 @@ npm run start:dev
 
 Cuando todo esté OK verás:
 ```bash
-✅ API running on http://localhost:3000
+ API running on http://localhost:3000
 ```
 
 ---
@@ -121,15 +121,15 @@ Cuando todo esté OK verás:
 
 Esta API usa JWT via:
 
-✅ `Authorization: Bearer <ACCESS_TOKEN>`
+ `Authorization: Bearer <ACCESS_TOKEN>`
 
 ---
 
-# ✅ Endpoints disponibles
+#  Endpoints disponibles
 
 ## 🟢 Auth
 
-### ✅ Register
+###  Register
 **POST** `/auth/register`
 
 ```bash
@@ -145,7 +145,7 @@ curl -X POST http://localhost:3000/auth/register   -H "Content-Type: application
 
 ---
 
-### ✅ Login
+###  Login
 **POST** `/auth/login`
 
 ```bash
@@ -170,7 +170,7 @@ curl -X POST http://localhost:3000/auth/login   -H "Content-Type: application/js
 
 ---
 
-### ✅ Refresh Token
+###  Refresh Token
 **POST** `/auth/refresh`
 
 ```bash
@@ -179,7 +179,7 @@ curl -X POST http://localhost:3000/auth/refresh   -H "Content-Type: application/
 
 ---
 
-### ✅ Me (perfil actual)
+###  Me (perfil actual)
 **GET** `/auth/me`
 
 ```bash
@@ -188,7 +188,7 @@ curl -X GET http://localhost:3000/auth/me   -H "Authorization: Bearer TU_ACCESS_
 
 ---
 
-### ✅ Logout
+###  Logout
 **POST** `/auth/logout`
 
 ```bash
@@ -199,7 +199,7 @@ curl -X POST http://localhost:3000/auth/logout   -H "Authorization: Bearer TU_AC
 
 ## 👥 Users
 
-### ✅ Ping público
+###  Ping público
 **GET** `/users/ping`
 
 ```bash
@@ -208,7 +208,7 @@ curl -X GET http://localhost:3000/users/ping
 
 ---
 
-### ✅ Listar usuarios para chat (excluye el logeado)
+###  Listar usuarios para chat (excluye el logeado)
 **GET** `/users`
 
 ```bash
@@ -217,7 +217,7 @@ curl -X GET http://localhost:3000/users   -H "Authorization: Bearer TU_ACCESS_TO
 
 ---
 
-### ✅ Perfil público por ID
+###  Perfil público por ID
 **GET** `/users/:id`
 
 ```bash
@@ -230,7 +230,7 @@ curl -X GET http://localhost:3000/users/UUID_USUARIO   -H "Authorization: Bearer
 
 > Todos los endpoints de chat están protegidos con JWT.
 
-### ✅ Traer historial con un usuario
+###  Traer historial con un usuario
 **GET** `/chat/:peerId/messages?limit=200`
 
 ```bash
@@ -255,7 +255,7 @@ curl -X GET "http://localhost:3000/chat/UUID_PEER/messages?limit=200"   -H "Auth
 
 ---
 
-### ✅ Enviar mensaje
+###  Enviar mensaje
 **POST** `/chat/:peerId/messages`
 
 ```bash
@@ -282,7 +282,7 @@ curl -X POST "http://localhost:3000/chat/UUID_PEER/messages"   -H "Authorization
 
 El asistente **responde automáticamente** solo cuando:
 
-✅ `peerId === ASSISTANT_USER_ID`
+ `peerId === ASSISTANT_USER_ID`
 
 Es decir, cuando el usuario le habla al **usuario especial del sistema**.
 
@@ -293,7 +293,7 @@ Es decir, cuando el usuario le habla al **usuario especial del sistema**.
 
 ---
 
-## ✅ Cómo configurar el ASSISTANT_USER_ID
+##  Cómo configurar el ASSISTANT_USER_ID
 
 1) Registra un usuario “Asistente”:
 ```bash
@@ -332,16 +332,16 @@ Significa que el índice `participants` fue declarado 2 veces:
 - `index: true` en el campo
 - y `schema.index({ participants: 1 })`
 
-✅ Solución: deja solo 1 definición.
+ Solución: deja solo 1 definición.
 
 ---
 
 # 📌 Notas de seguridad
 
-✅ Passwords hasheadas con `bcrypt`  
-✅ Refresh tokens se almacenan como hash (rotación)  
-✅ JWT via Authorization Header  
-✅ `.env` nunca debe subirse al repo
+ Passwords hasheadas con `bcrypt`  
+ Refresh tokens se almacenan como hash (rotación)  
+ JWT via Authorization Header  
+ `.env` nunca debe subirse al repo
 
 ---
 

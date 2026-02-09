@@ -11,17 +11,19 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
 
-// ✅ NUEVO: módulo de logs (HTTP + archivos + Prisma)
+//  NUEVO: módulo de logs (HTTP + archivos + Prisma)
 import { LoggingModule } from './common/logging/logging.module';
 
-// ✅ NUEVO: módulo de geolocalización
+//  NUEVO: módulo de geolocalización
 import { LocationsModule } from './modules/locations/locations.module';
 
-// ✅ NUEVO: módulo de llamadas (audio / video)
+//  NUEVO: módulo de llamadas (audio / video)
 import { CallsModule } from './modules/calls/calls.module';
+//  NUEVO: módulo de jornada laboral
+import { WorkdayModule } from './modules/workday/workday.module';
 
 /**
- * ✅ AppModule
+ *  AppModule
  * - Config global (.env + validación)
  * - Mongo (Mongoose)
  * - Prisma (MySQL)
@@ -34,7 +36,7 @@ import { CallsModule } from './modules/calls/calls.module';
 @Module({
   imports: [
     /**
-     * ✅ Variables de entorno globales
+     *  Variables de entorno globales
      * - `envFilePath`: carga tu `.env`
      * - `load`: configuración tipada (configuration.ts)
      * - `validate`: validación de variables (env.validation.ts)
@@ -47,7 +49,7 @@ import { CallsModule } from './modules/calls/calls.module';
     }),
 
     /**
-     * ✅ Logging Global
+     *  Logging Global
      * - Registra HTTP request/response
      * - Escribe en consola + archivo
      * - Provee APP_LOGGER (pino)
@@ -55,7 +57,7 @@ import { CallsModule } from './modules/calls/calls.module';
     LoggingModule,
 
     /**
-     * ✅ MongoDB para guardar conversaciones y geolocalización
+     *  MongoDB para guardar conversaciones y geolocalización
      * Se lee desde MONGO_URI en tu .env
      */
     MongooseModule.forRootAsync({
@@ -63,9 +65,9 @@ import { CallsModule } from './modules/calls/calls.module';
       useFactory: (config: ConfigService) => {
         const mongoUri = config.get<string>('MONGO_URI');
 
-        // ✅ Falla rápido si falta la variable
+        //  Falla rápido si falta la variable
         if (!mongoUri) {
-          throw new Error('❌ Falta la variable MONGO_URI en el .env');
+          throw new Error(' Falta la variable MONGO_URI en el .env');
         }
 
         return { uri: mongoUri };
@@ -73,22 +75,23 @@ import { CallsModule } from './modules/calls/calls.module';
     }),
 
     /**
-     * ✅ Prisma (MySQL)
+     *  Prisma (MySQL)
      * PrismaModule es Global, pero lo importamos por claridad.
      * Importante: LoggingModule ya está arriba para que APP_LOGGER exista.
      */
     PrismaModule,
 
-    // ✅ Módulos del negocio
+    //  Módulos del negocio
     UsersModule,
     AuthModule,
     ChatModule,
 
-    // ✅ Geolocalización
+    //  Geolocalización
     LocationsModule,
 
-    // ✅ Señalización para llamadas (WebRTC)
+    //  Señalización para llamadas (WebRTC)
     CallsModule,
+    WorkdayModule,
   ],
 })
 export class AppModule {}

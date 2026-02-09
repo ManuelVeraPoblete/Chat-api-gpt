@@ -10,10 +10,10 @@ import { PrismaModule } from '../prisma/prisma.module';
  */
 @Module({
   imports: [
-    PrismaModule, // ✅ asegura PrismaService disponible
+    PrismaModule, //  asegura PrismaService disponible
   ],
   controllers: [
-    UsersController, // ✅ si esto no está, /users no existe (404)
+    UsersController, //  si esto no está, /users no existe (404)
   ],
   providers: [UsersService],
   exports: [UsersService],

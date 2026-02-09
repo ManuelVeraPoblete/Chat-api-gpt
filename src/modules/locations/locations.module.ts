@@ -6,7 +6,7 @@ import { LocationsService } from './locations.service';
 import { UserLocation, UserLocationSchema } from './schemas/user-location.schema';
 
 /**
- * ✅ LocationsModule
+ *  LocationsModule
  *
  * Responsabilidad:
  * - Administrar ubicación de usuarios conectados (opt-in).
@@ -23,6 +23,6 @@ import { UserLocation, UserLocationSchema } from './schemas/user-location.schema
   ],
   controllers: [LocationsController],
   providers: [LocationsService],
-  exports: [LocationsService], // ✅ por si luego quieres usarlo en otros módulos
+  exports: [LocationsService], //  por si luego quieres usarlo en otros módulos
 })
 export class LocationsModule {}

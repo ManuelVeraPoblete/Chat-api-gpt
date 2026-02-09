@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { requestContext } from './request-context';
 
 /**
- * ✅ Middleware:
+ *  Middleware:
  * - crea traceId por request
  * - lo deja disponible para cualquier log posterior (DB incluido)
  * - lo expone en response header (útil para debugging)

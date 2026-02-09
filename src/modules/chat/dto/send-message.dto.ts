@@ -1,7 +1,7 @@
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
- * ✅ DTO: Validación del body al enviar un mensaje
+ *  DTO: Validación del body al enviar un mensaje
  * Ejemplo:
  * {
  *   "text": "Hola asistente"
@@ -9,7 +9,7 @@ import { IsOptional, IsString, MaxLength } from 'class-validator';
  */
 export class SendMessageDto {
   /**
-   * ✅ Texto opcional
+   *  Texto opcional
    * - Puede venir vacío si el mensaje es solo adjuntos.
    * - El service valida que exista texto o archivos.
    */

@@ -4,7 +4,7 @@ import { CallsGateway } from './calls.gateway';
 import { AppJwtModule } from '../../common/jwt/app-jwt.module';
 
 /**
- * ✅ CallsModule
+ *  CallsModule
  * - Contiene el Gateway de signaling para llamadas (audio/video)
  * - NO transmite media (solo señalización WebRTC)
  *
@@ -14,7 +14,7 @@ import { AppJwtModule } from '../../common/jwt/app-jwt.module';
  */
 @Module({
   imports: [
-    // ✅ Habilita JwtService en el contexto del módulo
+    //  Habilita JwtService en el contexto del módulo
     AppJwtModule,
   ],
   providers: [CallsGateway],

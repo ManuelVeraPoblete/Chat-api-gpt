@@ -1,5 +1,5 @@
 /**
- * ✅ Constantes de uploads para el módulo de Chat
+ *  Constantes de uploads para el módulo de Chat
  *
  * Mantener esto centralizado ayuda a:
  * - Reutilizar valores en Controller/Service
@@ -18,19 +18,19 @@ export const CHAT_MAX_FILES_PER_MESSAGE = 10;
 export const CHAT_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
 
 /**
- * ✅ MIME types permitidos
+ *  MIME types permitidos
  * - Permitimos imágenes y documentos comunes.
  * - Evitamos ejecutables por seguridad.
  */
 export const CHAT_ALLOWED_MIME_TYPES = new Set<string>([
-  // ✅ Images
+  //  Images
   'image/jpeg',
   'image/jpg',
   'image/png',
   'image/webp',
   'image/gif',
 
-  // ✅ Documents
+  //  Documents
   'application/pdf',
   'text/plain',
   'text/csv',

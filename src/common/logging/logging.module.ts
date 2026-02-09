@@ -25,7 +25,7 @@ import { TraceMiddleware } from './trace.middleware';
 })
 export class LoggingModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // ✅ Se ejecuta primero para crear traceId en TODA request
+    //  Se ejecuta primero para crear traceId en TODA request
     consumer.apply(TraceMiddleware).forRoutes('*');
   }
 }

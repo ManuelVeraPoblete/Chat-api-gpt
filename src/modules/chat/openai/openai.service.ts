@@ -2,15 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 
 /**
- * ✅ OpenAiService
+ *  OpenAiService
  *
  * - Mantiene TODA tu implementación actual
  * - Se agrega SOLO un método adapter:
  *   generateAssistantReply()
  *   para que ChatService no tenga errores de tipado
  *
- * ❌ No se rompe nada existente
- * ✅ Clean Architecture
+ *  No se rompe nada existente
+ *  Clean Architecture
  */
 @Injectable()
 export class OpenAiService {
@@ -25,7 +25,7 @@ export class OpenAiService {
   constructor() {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error('❌ Falta la variable OPENAI_API_KEY en el .env');
+      throw new Error(' Falta la variable OPENAI_API_KEY en el .env');
     }
 
     this.client = new OpenAI({ apiKey });
@@ -38,11 +38,11 @@ export class OpenAiService {
   }
 
   // ===========================================================================
-  // ✅ ADAPTER PARA ChatService (SOLUCIÓN AL ERROR)
+  //  ADAPTER PARA ChatService (SOLUCIÓN AL ERROR)
   // ===========================================================================
 
   /**
-   * ✅ Método esperado por ChatService
+   *  Método esperado por ChatService
    * Actúa como ADAPTER hacia replyWithAssistant()
    */
   async generateAssistantReply(params: {
@@ -53,7 +53,7 @@ export class OpenAiService {
     const assistantId = process.env.OPENAI_ASSISTANT_ID;
 
     if (!assistantId) {
-      this.logger.error('❌ OPENAI_ASSISTANT_ID no configurado');
+      this.logger.error(' OPENAI_ASSISTANT_ID no configurado');
       return {
         text: OpenAiService.NO_KB_MESSAGE,
         threadId: params.aiThreadId ?? null,
@@ -74,7 +74,7 @@ export class OpenAiService {
   }
 
   // ===========================================================================
-  // ✅ RESPONSES API (SIN RAG)
+  //  RESPONSES API (SIN RAG)
   // ===========================================================================
 
   async reply(params: {
@@ -99,7 +99,7 @@ export class OpenAiService {
   }
 
   // ===========================================================================
-  // ✅ RESPONSES API + FILE SEARCH (RAG MANUAL)
+  //  RESPONSES API + FILE SEARCH (RAG MANUAL)
   // ===========================================================================
 
   async replyWithCompanyKnowledge(params: {
@@ -134,7 +134,7 @@ export class OpenAiService {
   }
 
   // ===========================================================================
-  // ✅ ASSISTANTS API (ENTELGY – CON THREAD PERSISTENTE)
+  //  ASSISTANTS API (ENTELGY – CON THREAD PERSISTENTE)
   // ===========================================================================
 
   async replyWithAssistant(params: {
@@ -145,7 +145,7 @@ export class OpenAiService {
   }): Promise<{ text: string; threadId: string }> {
     const { assistantId, historyText, userText } = params;
 
-    // ✅ Thread seguro
+    //  Thread seguro
     let threadId = (params.threadId ?? '').trim();
 
     if (!threadId) {
@@ -156,7 +156,7 @@ export class OpenAiService {
       this.logger.log(`Assistant: reusando thread => ${threadId}`);
     }
 
-    // ✅ Enviar mensaje
+    //  Enviar mensaje
     const content = [
       historyText ? `HISTORIAL:\n${historyText}` : null,
       `MENSAJE USUARIO:\n${userText}`,
@@ -169,19 +169,19 @@ export class OpenAiService {
       content,
     });
 
-    // ✅ Crear run
+    //  Crear run
     const run = await this.client.beta.threads.runs.create(threadId, {
       assistant_id: assistantId,
     });
 
-    // ✅ Esperar run
+    //  Esperar run
     const finalRun = await this.waitRun(threadId, run.id);
 
     if (finalRun.status !== 'completed') {
       return { text: OpenAiService.NO_KB_MESSAGE, threadId };
     }
 
-    // ✅ Obtener respuesta
+    //  Obtener respuesta
     const msgs = await this.client.beta.threads.messages.list(threadId, { limit: 10 });
     const last = msgs.data.find((m) => m.role === 'assistant');
 
@@ -194,7 +194,7 @@ export class OpenAiService {
   }
 
   // ===========================================================================
-  // ✅ POLLING RUN
+  //  POLLING RUN
   // ===========================================================================
 
   private async waitRun(threadId: string, runId: string) {
@@ -220,7 +220,7 @@ export class OpenAiService {
   }
 
   // ===========================================================================
-  // ✅ UTILIDADES
+  //  UTILIDADES
   // ===========================================================================
 
   private extractAssistantText(message: any): string | null {

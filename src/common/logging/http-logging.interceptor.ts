@@ -24,10 +24,10 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const method = req.method;
     const url = req.originalUrl || req.url;
 
-    // ✅ userId si viene por auth guard/strategy
+    //  userId si viene por auth guard/strategy
     const userId = req?.user?.sub || req?.user?.id || null;
 
-    // ✅ actualizamos store (si middleware lo dejó con userId null)
+    //  actualizamos store (si middleware lo dejó con userId null)
     const store = requestContext.getStore();
     if (store && userId && store.userId !== userId) store.userId = userId;
 

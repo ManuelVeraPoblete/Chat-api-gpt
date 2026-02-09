@@ -9,7 +9,7 @@ import { redactDeep, summarizeResult } from '../../common/logging/redact.util';
 import { getTraceId, getUserId } from '../../common/logging/request-context';
 
 /**
- * ✅ PrismaService (NestJS + Prisma 7 + MySQL via Driver Adapter)
+ *  PrismaService (NestJS + Prisma 7 + MySQL via Driver Adapter)
  *
  * Objetivo:
  * - Mantener tipado completo (this.prisma.user.findMany, etc.)
@@ -31,13 +31,13 @@ export class PrismaService
     const databaseUrl = process.env.DATABASE_URL;
 
     if (!databaseUrl) {
-      throw new Error('❌ DATABASE_URL no está definido en el archivo .env');
+      throw new Error(' DATABASE_URL no está definido en el archivo .env');
     }
 
-    // ✅ Parse robusto de mysql://...
+    //  Parse robusto de mysql://...
     const adapterConfig = PrismaService.parseMysqlUrl(databaseUrl);
 
-    // ✅ Adapter Prisma (MySQL/MariaDB)
+    //  Adapter Prisma (MySQL/MariaDB)
     const adapter = new PrismaMariaDb({
       host: adapterConfig.host,
       port: adapterConfig.port,
@@ -47,7 +47,7 @@ export class PrismaService
       connectionLimit: adapterConfig.connectionLimit,
     });
 
-    // ✅ PrismaClient real (con eventos)
+    //  PrismaClient real (con eventos)
     super({
       adapter,
       log: [
@@ -58,7 +58,7 @@ export class PrismaService
     });
 
     /**
-     * ✅ SQL real ejecutado por Prisma
+     *  SQL real ejecutado por Prisma
      * - query + params + duration
      * - incluye traceId/userId
      */
@@ -101,7 +101,7 @@ export class PrismaService
     });
 
     /**
-     * ✅ Prisma 7: reemplazo de middleware ($use)
+     *  Prisma 7: reemplazo de middleware ($use)
      * Usamos $extends para envolver todas las operaciones y loguear:
      * - args (variables)
      * - result (resumido + redacted)
@@ -159,7 +159,7 @@ export class PrismaService
     });
 
     /**
-     * ✅ Clave para NO romper tu código:
+     *  Clave para NO romper tu código:
      * - PrismaService sigue "extendiendo PrismaClient" => TS ve .user, .message, etc.
      * - Pero en runtime queremos que las llamadas usen el cliente extendido (logging args/result)
      *
@@ -179,7 +179,7 @@ export class PrismaService
   }
 
   /**
-   * ✅ Parser robusto de DATABASE_URL mysql://user:pass@host:3306/db
+   *  Parser robusto de DATABASE_URL mysql://user:pass@host:3306/db
    */
   private static parseMysqlUrl(databaseUrl: string): {
     host: string;
@@ -195,12 +195,12 @@ export class PrismaService
       url = new URL(databaseUrl);
     } catch {
       throw new Error(
-        `❌ DATABASE_URL inválida. Debe tener formato mysql://USER:PASSWORD@HOST:PORT/DB\nValor actual: ${databaseUrl}`,
+        ` DATABASE_URL inválida. Debe tener formato mysql://USER:PASSWORD@HOST:PORT/DB\nValor actual: ${databaseUrl}`,
       );
     }
 
     if (url.protocol !== 'mysql:') {
-      throw new Error(`❌ DATABASE_URL debe comenzar con mysql://\nValor actual: ${databaseUrl}`);
+      throw new Error(` DATABASE_URL debe comenzar con mysql://\nValor actual: ${databaseUrl}`);
     }
 
     const host = url.hostname;
@@ -211,12 +211,12 @@ export class PrismaService
 
     if (!host || !user || !database) {
       throw new Error(
-        `❌ DATABASE_URL incompleta. Debe incluir host, user y database.\nValor actual: ${databaseUrl}`,
+        ` DATABASE_URL incompleta. Debe incluir host, user y database.\nValor actual: ${databaseUrl}`,
       );
     }
 
     if (!Number.isFinite(port)) {
-      throw new Error(`❌ Puerto inválido en DATABASE_URL: ${url.port}`);
+      throw new Error(` Puerto inválido en DATABASE_URL: ${url.port}`);
     }
 
     return {

@@ -6,7 +6,7 @@ import type { ChatAttachmentKind } from '../schemas/message.schema';
 import { ChatAttachment } from '../schemas/message.schema';
 
 /**
- * ✅ ChatAttachmentsService
+ *  ChatAttachmentsService
  *
  * SRP:
  * - Solo construye "attachments" persistibles para Mongo.
@@ -19,7 +19,7 @@ import { ChatAttachment } from '../schemas/message.schema';
 @Injectable()
 export class ChatAttachmentsService {
   /**
-   * ✅ Convierte multer files a attachments (IMAGE/FILE)
+   *  Convierte multer files a attachments (IMAGE/FILE)
    */
   buildFileAttachments(files: Express.Multer.File[] = []): ChatAttachment[] {
     return files.map((f) => {
@@ -40,7 +40,7 @@ export class ChatAttachmentsService {
   }
 
   /**
-   * ✅ Crea un attachment de ubicación (LOCATION)
+   *  Crea un attachment de ubicación (LOCATION)
    */
   buildLocationAttachment(input: { latitude: number; longitude: number; label?: string }): ChatAttachment {
     return {
@@ -53,7 +53,7 @@ export class ChatAttachmentsService {
   }
 
   /**
-   * ✅ URL pública consistente con main.ts:
+   *  URL pública consistente con main.ts:
    * app.useStaticAssets(process.cwd() + '/uploads', { prefix: '/uploads' })
    */
   private buildPublicFileUrl(filename: string): string {

@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import type { Request, Express } from 'express'; // ✅ IMPORTANTE: Express para Multer types
+import type { Request, Express } from 'express'; //  IMPORTANTE: Express para Multer types
 
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -24,7 +24,7 @@ import { randomUUID } from 'crypto';
 import { ChatService } from './chat.service';
 
 /**
- * ✅ Request autenticado
+ *  Request autenticado
  * Passport deja el payload en req.user,
  * pero el shape puede variar según tu JwtStrategy.
  */
@@ -38,7 +38,7 @@ type AuthRequest = Request & {
 };
 
 /**
- * ✅ Ubicación entrante (Front -> API)
+ *  Ubicación entrante (Front -> API)
  */
 type LocationInput = {
   latitude: number;
@@ -47,7 +47,7 @@ type LocationInput = {
 };
 
 /**
- * ✅ Body para unread-counts
+ *  Body para unread-counts
  */
 type UnreadCountsBody = {
   peerIds: string[];
@@ -59,7 +59,7 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   /**
-   * ✅ Extrae el userId del request de forma robusta
+   *  Extrae el userId del request de forma robusta
    * (sub / id / userId)
    */
   private getUserIdFromReq(req: AuthRequest): string {
@@ -75,14 +75,14 @@ export class ChatController {
   }
 
   /**
-   * ✅ Parsea location que puede llegar de 2 maneras:
+   *  Parsea location que puede llegar de 2 maneras:
    * - JSON normal: { location: { latitude, longitude } }
    * - multipart/form-data: location viene como string JSON
    */
   private parseLocation(value: unknown): LocationInput | undefined {
     if (!value) return undefined;
 
-    // ✅ multipart: location = '{"latitude":..,"longitude":..}'
+    //  multipart: location = '{"latitude":..,"longitude":..}'
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
@@ -92,7 +92,7 @@ export class ChatController {
       }
     }
 
-    // ✅ JSON: location = object
+    //  JSON: location = object
     if (typeof value === 'object') {
       return this.ensureValidLocation(value as any);
     }
@@ -101,7 +101,7 @@ export class ChatController {
   }
 
   /**
-   * ✅ Validación de negocio (mínima)
+   *  Validación de negocio (mínima)
    * La validación completa y reglas finales las refuerza ChatService.
    */
   private ensureValidLocation(loc: any): LocationInput {
@@ -124,13 +124,13 @@ export class ChatController {
   }
 
   /**
-   * ✅ NUEVO: Conteo de no-leídos por peer (Home)
+   *  NUEVO: Conteo de no-leídos por peer (Home)
    * POST /chat/unread-counts
    *
    * Body:
    * { "peerIds": ["uuid-1","uuid-2"] }
    *
-   * ✅ IMPORTANTE:
+   *  IMPORTANTE:
    * - Debe ir ANTES de rutas con :peerId para evitar ambigüedades.
    */
   @Post('unread-counts')
@@ -145,7 +145,7 @@ export class ChatController {
   }
 
   /**
-   * ✅ Traer historial completo
+   *  Traer historial completo
    * GET /chat/:peerId/messages?limit=200
    */
   @Get(':peerId/messages')
@@ -163,15 +163,15 @@ export class ChatController {
   }
 
   /**
-   * ✅ Enviar mensaje WhatsApp PRO
+   *  Enviar mensaje WhatsApp PRO
    *
    * POST /chat/:peerId/messages
    *
    * Soporta:
-   * ✅ JSON:
+   *  JSON:
    *   { "text": "hola", "location": { "latitude":.., "longitude":.. } }
    *
-   * ✅ multipart/form-data:
+   *  multipart/form-data:
    *   text: "hola"
    *   location: '{"latitude":..,"longitude":..}'
    *   files: <file>[]   (hasta 10)
@@ -181,10 +181,10 @@ export class ChatController {
     FilesInterceptor('files', 10, {
       storage: diskStorage({
         destination: (_req, _file, cb) => {
-          // ✅ Guardamos en /uploads/chat
+          //  Guardamos en /uploads/chat
           const uploadPath = join(process.cwd(), 'uploads', 'chat');
 
-          // ✅ Asegura carpeta existente (Clean Code)
+          //  Asegura carpeta existente (Clean Code)
           if (!existsSync(uploadPath)) {
             mkdirSync(uploadPath, { recursive: true });
           }
@@ -192,14 +192,14 @@ export class ChatController {
           cb(null, uploadPath);
         },
         filename: (_req, file, cb) => {
-          // ✅ Nombre único + extensión original
+          //  Nombre único + extensión original
           const safeExt = extname(file.originalname || '').toLowerCase();
           const name = `${Date.now()}-${randomUUID()}${safeExt}`;
           cb(null, name);
         },
       }),
 
-      // ✅ Límite hard para no matar memoria
+      //  Límite hard para no matar memoria
       limits: {
         fileSize: 25 * 1024 * 1024, // 25MB por archivo (WhatsApp-like)
         files: 10,
@@ -217,7 +217,7 @@ export class ChatController {
     const text = typeof body?.text === 'string' ? body.text : '';
     const location = this.parseLocation(body?.location);
 
-    // ✅ Delegamos regla final al service (SOLID)
+    //  Delegamos regla final al service (SOLID)
     return this.chatService.sendMessage(userId, peerId, {
       text,
       files: files ?? [],

@@ -16,18 +16,18 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   /**
-   * ✅ Registro de usuario
+   *  Registro de usuario
    * - Se envía el DTO completo al AuthService
    * - Evitamos armar objetos manualmente (Clean Code)
    */
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    // ✅ FIX: AuthService.register(dto) recibe 1 argumento (objeto)
+    //  FIX: AuthService.register(dto) recibe 1 argumento (objeto)
     return this.auth.register(dto);
   }
 
   /**
-   * ✅ Login
+   *  Login
    * - Retorna accessToken + refreshToken
    */
   @Post('login')
@@ -36,7 +36,7 @@ export class AuthController {
   }
 
   /**
-   * ✅ Refresh token via body (no cookies).
+   *  Refresh token via body (no cookies).
    * Guard valida que venga refreshToken.
    */
   @UseGuards(RefreshAuthGuard)
@@ -46,7 +46,7 @@ export class AuthController {
   }
 
   /**
-   * ✅ Logout (invalida refresh token en BD)
+   *  Logout (invalida refresh token en BD)
    */
   @UseGuards(JwtAuthGuard)
   @Post('logout')
@@ -55,7 +55,7 @@ export class AuthController {
   }
 
   /**
-   * ✅ Perfil del usuario autenticado
+   *  Perfil del usuario autenticado
    * - Retorna datos completos desde BD
    */
   @UseGuards(JwtAuthGuard)

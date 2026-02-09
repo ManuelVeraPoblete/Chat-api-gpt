@@ -11,7 +11,7 @@ import {
 } from './chat-upload.constants';
 
 /**
- * ✅ Configuración de Multer para uploads del Chat
+ *  Configuración de Multer para uploads del Chat
  *
  * Buenas prácticas:
  * - Disk storage para desarrollo (simple y estable)
@@ -22,7 +22,7 @@ import {
 export function chatMulterOptions(): MulterOptions {
   const uploadsDir = join(process.cwd(), 'uploads', 'chat');
 
-  // ✅ Aseguramos el directorio destino
+  //  Aseguramos el directorio destino
   if (!existsSync(uploadsDir)) {
     mkdirSync(uploadsDir, { recursive: true });
   }
@@ -42,7 +42,7 @@ export function chatMulterOptions(): MulterOptions {
     },
 
     fileFilter: (_req, file, cb) => {
-      // ✅ Validación fuerte por MIME (NO por extensión)
+      //  Validación fuerte por MIME (NO por extensión)
       if (!isAllowedMimeType(file.mimetype)) {
         return cb(
           new BadRequestException(
@@ -59,7 +59,7 @@ export function chatMulterOptions(): MulterOptions {
 }
 
 /**
- * ✅ Extensión segura
+ *  Extensión segura
  * - Prioridad: extensión original
  * - Fallback: inferir por mimetype (si el nombre viene sin extensión)
  */
@@ -72,7 +72,7 @@ function getSafeExtension(originalName: string, mimeType: string): string {
 }
 
 /**
- * ✅ Inferencia simple de extensión
+ *  Inferencia simple de extensión
  * (evitamos dependencias extra)
  */
 function guessExtensionFromMime(mimeType: string): string | null {

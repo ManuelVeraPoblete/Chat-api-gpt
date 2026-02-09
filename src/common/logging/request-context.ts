@@ -2,7 +2,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
 /**
- * ✅ Contexto por request usando AsyncLocalStorage
+ *  Contexto por request usando AsyncLocalStorage
  * - Permite correlacionar logs HTTP ↔ SQL ↔ operaciones Prisma
  */
 export type RequestContextStore = {

@@ -26,15 +26,15 @@ export class AuthService {
   }
 
   /**
-   * ✅ Overloads (compatibilidad)
-   * - register(dto) ✅ nuevo recomendado
-   * - register(email, displayName, password) ✅ legacy
+   *  Overloads (compatibilidad)
+   * - register(dto)  nuevo recomendado
+   * - register(email, displayName, password)  legacy
    */
   async register(dto: RegisterDto): Promise<any>;
   async register(email: string, displayName: string, password: string): Promise<any>;
 
   /**
-   * ✅ Implementación única
+   *  Implementación única
    * - Normaliza argumentos a un DTO
    * - Hashea password
    * - Crea usuario con campos corporativos
@@ -42,7 +42,7 @@ export class AuthService {
    * - Devuelve perfil público
    */
   async register(arg1: RegisterDto | string, displayName?: string, password?: string) {
-    // ✅ Normalizamos: si viene string => legacy, si viene objeto => DTO moderno
+    //  Normalizamos: si viene string => legacy, si viene objeto => DTO moderno
     const dto: RegisterDto =
       typeof arg1 === 'string'
         ? ({
@@ -52,11 +52,11 @@ export class AuthService {
           } as RegisterDto)
         : arg1;
 
-    // ✅ Hash password
+    //  Hash password
     const passwordHash = await CryptoUtil.hash(dto.password, this.saltRounds);
 
     /**
-     * ✅ IMPORTANTE:
+     *  IMPORTANTE:
      * UsersService.createUser debe aceptar estos campos opcionales
      * phone / companySection / jobTitle
      */
@@ -65,19 +65,19 @@ export class AuthService {
       displayName: dto.displayName,
       passwordHash,
 
-      // ✅ Campos corporativos (si existen en tu modelo)
+      //  Campos corporativos (si existen en tu modelo)
       phone: dto.phone ?? null,
       companySection: dto.companySection ?? null,
       jobTitle: dto.jobTitle ?? null,
     });
 
-    // ✅ Emitimos tokens
+    //  Emitimos tokens
     const tokens = await this.issueTokens(user.id, user.email);
 
-    // ✅ Guardamos refresh token hasheado (rotación)
+    //  Guardamos refresh token hasheado (rotación)
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
-    // ✅ devolvemos perfil público (con campos corporativos si existen)
+    //  devolvemos perfil público (con campos corporativos si existen)
     const publicUser = await this.users.findPublicById(user.id);
 
     return {
@@ -96,7 +96,7 @@ export class AuthService {
     const tokens = await this.issueTokens(user.id, user.email);
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
-    // ✅ devolvemos perfil público completo
+    //  devolvemos perfil público completo
     const publicUser = await this.users.findPublicById(user.id);
 
     return {
@@ -106,7 +106,7 @@ export class AuthService {
   }
 
   /**
-   * ✅ Perfil del usuario logeado
+   *  Perfil del usuario logeado
    */
   async me(userId: string) {
     return this.users.findPublicById(userId);
@@ -137,7 +137,7 @@ export class AuthService {
   }
 
   /**
-   * ✅ Access + Refresh tokens
+   *  Access + Refresh tokens
    */
   private async issueTokens(userId: string, email: string) {
     const accessToken = await this.jwt.signAsync(
@@ -160,7 +160,7 @@ export class AuthService {
   }
 
   /**
-   * ✅ Guarda el refresh token hasheado para poder revocarlo/rotarlo
+   *  Guarda el refresh token hasheado para poder revocarlo/rotarlo
    */
   private async storeRefreshTokenHash(userId: string, refreshToken: string) {
     const refreshTokenHash = await CryptoUtil.hash(refreshToken, this.saltRounds);
@@ -168,7 +168,7 @@ export class AuthService {
   }
 
   /**
-   * ✅ Verifica firma y expiración del refresh token
+   *  Verifica firma y expiración del refresh token
    */
   private async verifyRefreshToken(token: string): Promise<{ sub: string; email: string }> {
     try {

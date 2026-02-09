@@ -11,7 +11,7 @@ import { OpenAiService } from './openai/openai.service';
 import { ChatAttachmentsService } from './uploads/chat-attachments.service';
 
 /**
- * ✅ ChatModule
+ *  ChatModule
  * - Registra schemas de Mongo (conversación y mensajes)
  * - Expone endpoints REST: GET y POST mensajes
  * - Lógica en ChatService

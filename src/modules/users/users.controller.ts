@@ -14,21 +14,21 @@ import { UsersService } from './users.service';
  * - Expone endpoints REST relacionados a usuarios
  * - Sin lógica de negocio (solo delega al service)
  */
-@Controller('users') // ✅ /users
+@Controller('users') //  /users
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * ✅ Ping público
+   *  Ping público
    * GET /users/ping
    */
   @Get('ping')
   ping() {
-    return { ok: true, message: 'UsersController OK ✅' };
+    return { ok: true, message: 'UsersController OK ' };
   }
 
   /**
-   * ✅ Lista usuarios para chat (tipo WhatsApp)
+   *  Lista usuarios para chat (tipo WhatsApp)
    * GET /users
    *
    * - Protegido con JWT
@@ -47,7 +47,7 @@ export class UsersController {
   }
 
   /**
-   * ✅ Perfil público por ID (el que te faltaba)
+   *  Perfil público por ID (el que te faltaba)
    * GET /users/:id
    *
    * - Protegido con JWT

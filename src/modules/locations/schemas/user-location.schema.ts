@@ -4,14 +4,14 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 /**
- * ✅ UserLocationDocument
+ *  UserLocationDocument
  * Documento Mongo tipado para Mongoose.
  * - Incluye campos del schema + Document + timestamps (createdAt/updatedAt).
  */
 export type UserLocationDocument = UserLocation & Document;
 
 /**
- * ✅ UserLocation Schema (Mongo)
+ *  UserLocation Schema (Mongo)
  *
  * Reglas:
  * - 1 documento por usuario => userId único.
@@ -22,11 +22,11 @@ export type UserLocationDocument = UserLocation & Document;
  */
 @Schema({
   timestamps: true,
-  collection: 'user_locations', // ✅ nombre explícito (opcional, pero recomendado)
+  collection: 'user_locations', //  nombre explícito (opcional, pero recomendado)
 })
 export class UserLocation {
   /**
-   * ✅ Identificador del usuario (1 doc por usuario)
+   *  Identificador del usuario (1 doc por usuario)
    * - unique + index para upsert eficiente
    */
   @Prop({
@@ -38,7 +38,7 @@ export class UserLocation {
   userId!: string;
 
   /**
-   * ✅ Coordenadas
+   *  Coordenadas
    */
   @Prop({ required: true, type: Number })
   latitude!: number;
@@ -47,13 +47,13 @@ export class UserLocation {
   longitude!: number;
 
   /**
-   * ✅ Precisión (metros, si el device la entrega)
+   *  Precisión (metros, si el device la entrega)
    */
   @Prop({ required: false, type: Number })
   accuracy?: number;
 
   /**
-   * ✅ Live location:
+   *  Live location:
    * - isLive=true indica que el usuario está compartiendo ubicación en vivo
    * - liveUntil define vigencia
    */
@@ -72,7 +72,7 @@ export class UserLocation {
 export const UserLocationSchema = SchemaFactory.createForClass(UserLocation);
 
 /**
- * ✅ Índices adicionales (opcionales pero útiles)
+ *  Índices adicionales (opcionales pero útiles)
  * - liveUntil para queries de activos en vivo
  */
 UserLocationSchema.index({ liveUntil: 1 });

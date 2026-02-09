@@ -1,7 +1,7 @@
 import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
 
 /**
- * ✅ UpdateLocationDto
+ *  UpdateLocationDto
  * Payload para actualizar la ubicación del usuario autenticado.
  *
  * - isLive=false (default): guarda ubicación puntual
@@ -19,7 +19,7 @@ export class UpdateLocationDto {
   longitude!: number;
 
   /**
-   * ✅ Precisión opcional (metros)
+   *  Precisión opcional (metros)
    */
   @IsOptional()
   @IsNumber({}, { message: 'accuracy debe ser numérico' })
@@ -27,14 +27,14 @@ export class UpdateLocationDto {
   accuracy?: number;
 
   /**
-   * ✅ Si se comparte live
+   *  Si se comparte live
    */
   @IsOptional()
   @IsBoolean({ message: 'isLive debe ser boolean' })
   isLive?: boolean;
 
   /**
-   * ✅ Minutos de live share (solo si isLive=true)
+   *  Minutos de live share (solo si isLive=true)
    * Recomendación WhatsApp: 15, 60, 480 (8h)
    */
   @IsOptional()

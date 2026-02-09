@@ -1,5 +1,5 @@
 /**
- * ✅ Prisma Schema (Prisma 7)
+ *  Prisma Schema (Prisma 7)
  * - En Prisma 7 NO se configura `url` aquí
  * - La URL se define en `prisma.config.ts`
  */

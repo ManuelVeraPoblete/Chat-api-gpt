@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 /**
- * ✅ Subdocumento: ReadState
+ *  Subdocumento: ReadState
  * - Guarda "hasta cuándo" un usuario leyó una conversación
  * - Permite calcular no-leídos de forma determinística y barata
  */
@@ -18,7 +18,7 @@ export class ReadState {
 export const ReadStateSchema = SchemaFactory.createForClass(ReadState);
 
 /**
- * ✅ Conversation Schema
+ *  Conversation Schema
  * - participants (ordenados)
  * - lastMessageAt
  * - readStates: lastReadAt por participante (para badge de no-leídos)
@@ -33,7 +33,7 @@ export class Conversation extends Document {
   lastMessageAt!: Date;
 
   /**
-   * ✅ Estado de lectura por usuario (no-leídos)
+   *  Estado de lectura por usuario (no-leídos)
    * Importante:
    * - Es un array para mantenerlo simple con Mongoose
    * - En conversaciones directas tendrá 2 elementos
@@ -41,13 +41,13 @@ export class Conversation extends Document {
   @Prop({ type: [ReadStateSchema], default: [] })
   readStates!: ReadState[];
 
-  // ✅ threadId para reutilizar en conversaciones con IA
+  //  threadId para reutilizar en conversaciones con IA
   @Prop({ type: String, required: false, default: null })
   aiThreadId?: string | null;
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
 
-// ✅ Índices recomendados (consultas frecuentes)
+//  Índices recomendados (consultas frecuentes)
 ConversationSchema.index({ participants: 1 });
 ConversationSchema.index({ lastMessageAt: -1 });

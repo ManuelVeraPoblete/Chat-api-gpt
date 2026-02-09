@@ -11,7 +11,7 @@ import { RefreshStrategy } from './strategies/refresh.strategy';
 import { AppJwtModule } from '../../common/jwt/app-jwt.module';
 
 /**
- * ✅ AuthModule
+ *  AuthModule
  * - Login, refresh, registro
  * - Strategies JWT/Refresh
  *
@@ -23,7 +23,7 @@ import { AppJwtModule } from '../../common/jwt/app-jwt.module';
     UsersModule,
     PassportModule,
 
-    // ✅ Reemplaza JwtModule.register({}) por el módulo compartido
+    //  Reemplaza JwtModule.register({}) por el módulo compartido
     AppJwtModule,
   ],
   controllers: [AuthController],

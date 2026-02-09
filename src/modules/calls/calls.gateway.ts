@@ -13,13 +13,13 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 
 /**
- * ✅ Tipos de payload para señalización WebRTC
+ *  Tipos de payload para señalización WebRTC
  * - El backend SOLO coordina (signaling). No transmite audio/video.
  */
 type CallType = 'audio' | 'video';
 
 type CallStartPayload = {
-  callId: string; // ✅ id único por llamada (lo genera el cliente o backend)
+  callId: string; //  id único por llamada (lo genera el cliente o backend)
   fromUserId: string;
   toUserId: string;
   callType: CallType;
@@ -62,7 +62,7 @@ type IcePayload = {
 
 @WebSocketGateway({
   cors: { origin: '*' },
-  transports: ['websocket'], // ✅ reduce fallback/ruido en prod
+  transports: ['websocket'], //  reduce fallback/ruido en prod
 })
 export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -76,7 +76,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   /**
-   * ✅ Autenticación y binding del socket al userId
+   *  Autenticación y binding del socket al userId
    * - Requiere token JWT en handshake
    * - Socket se une a room = userId (para enviar eventos 1:1)
    */
@@ -92,10 +92,10 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const payload = await this.verifyAccessToken(token);
 
-      // ✅ Guardamos el userId en socket.data (safe place)
+      //  Guardamos el userId en socket.data (safe place)
       client.data.userId = payload.sub;
 
-      // ✅ Room por userId (permite server.to(userId).emit(...))
+      //  Room por userId (permite server.to(userId).emit(...))
       client.join(payload.sub);
 
       this.logger.log(`Socket conectado userId=${payload.sub} socketId=${client.id}`);
@@ -111,7 +111,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * ✅ Iniciar llamada
+   *  Iniciar llamada
    * - Emite a receptor: call:incoming
    */
   @SubscribeMessage('call:start')
@@ -119,10 +119,10 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: CallStartPayload,
   ) {
-    // ✅ Seguridad mínima: el "fromUserId" debe coincidir con el socket autenticado
+    //  Seguridad mínima: el "fromUserId" debe coincidir con el socket autenticado
     this.assertCallerIdentity(client, payload.fromUserId);
 
-    // ✅ Enviamos evento al receptor (room = toUserId)
+    //  Enviamos evento al receptor (room = toUserId)
     this.server.to(payload.toUserId).emit('call:incoming', payload);
 
     // (Opcional) feedback al que llama
@@ -134,7 +134,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * ✅ Aceptar llamada
+   *  Aceptar llamada
    * - Emite al que llamó: call:accepted
    */
   @SubscribeMessage('call:accept')
@@ -149,7 +149,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * ✅ Rechazar llamada
+   *  Rechazar llamada
    * - Emite al que llamó: call:rejected
    */
   @SubscribeMessage('call:reject')
@@ -164,7 +164,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * ✅ Terminar llamada
+   *  Terminar llamada
    * - Emite al otro participante: call:ended
    */
   @SubscribeMessage('call:end')
@@ -179,7 +179,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * ✅ SDP Offer/Answer (WebRTC)
+   *  SDP Offer/Answer (WebRTC)
    * - Se reenvía al otro peer
    */
   @SubscribeMessage('call:sdp')
@@ -193,7 +193,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * ✅ ICE candidates (WebRTC)
+   *  ICE candidates (WebRTC)
    * - Se reenvía al otro peer
    */
   @SubscribeMessage('call:ice')
@@ -207,7 +207,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // ---------------------------------------------------------------------------
-  // ✅ Helpers privados (Clean Code)
+  //  Helpers privados (Clean Code)
   // ---------------------------------------------------------------------------
 
   /**
@@ -216,13 +216,13 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * - headers.authorization (compatibilidad)
    */
   private extractBearerToken(client: Socket): string | null {
-    // ✅ Recomendado: socket.io-client -> io(url, { auth: { token: 'Bearer xxx' } })
+    //  Recomendado: socket.io-client -> io(url, { auth: { token: 'Bearer xxx' } })
     const authToken = client.handshake?.auth?.token;
     if (typeof authToken === 'string' && authToken.trim().length > 0) {
       return this.normalizeBearer(authToken);
     }
 
-    // ✅ Compatibilidad: Authorization header
+    //  Compatibilidad: Authorization header
     const header = client.handshake?.headers?.authorization;
     if (typeof header === 'string' && header.trim().length > 0) {
       return this.normalizeBearer(header);
@@ -246,7 +246,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private async verifyAccessToken(token: string): Promise<{ sub: string; email?: string }> {
     const secret = this.config.get<string>('jwt.accessSecret');
     if (!secret) {
-      // ✅ Falla rápido si configuración está mala
+      //  Falla rápido si configuración está mala
       throw new Error('Missing jwt.accessSecret in configuration');
     }
     return await this.jwt.verifyAsync(token, { secret });

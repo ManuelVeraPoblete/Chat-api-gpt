@@ -4,14 +4,14 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 /**
- * ✅ Tipos de rol del mensaje:
+ *  Tipos de rol del mensaje:
  * - user: mensaje enviado por un usuario real
  * - assistant: mensaje generado por ChatGPT (Asistente Corporativo)
  */
 export type MessageRole = 'user' | 'assistant';
 
 /**
- * ✅ Tipos de attachment:
+ *  Tipos de attachment:
  * - IMAGE => imagen subida
  * - FILE => documento/archivo subido
  * - LOCATION => ubicación compartida (WhatsApp-like)
@@ -19,7 +19,7 @@ export type MessageRole = 'user' | 'assistant';
 export type ChatAttachmentKind = 'IMAGE' | 'FILE' | 'LOCATION';
 
 /**
- * ✅ Subdocumento: ChatAttachment
+ *  Subdocumento: ChatAttachment
  * Se guarda dentro del mensaje (Mongo).
  *
  * Clean Code:
@@ -29,7 +29,7 @@ export type ChatAttachmentKind = 'IMAGE' | 'FILE' | 'LOCATION';
 @Schema({ _id: false })
 export class ChatAttachment {
   /**
-   * ✅ Id propio del attachment (no dependemos del _id de Mongo)
+   *  Id propio del attachment (no dependemos del _id de Mongo)
    * Esto ayuda mucho al front para listas y render.
    */
   @Prop({ required: true })
@@ -38,7 +38,7 @@ export class ChatAttachment {
   @Prop({ required: true, enum: ['IMAGE', 'FILE', 'LOCATION'] })
   kind!: ChatAttachmentKind;
 
-  // ✅ Para IMAGE / FILE
+  //  Para IMAGE / FILE
   @Prop({ type: String })
   url?: string;
 
@@ -52,7 +52,7 @@ export class ChatAttachment {
   fileSize?: number;
 
   /**
-   * ✅ Metadata opcional de imagen
+   *  Metadata opcional de imagen
    * IMPORTANTE: Mongoose no infiere bien unions => declarar type + default
    */
   @Prop({ type: Number, default: null })
@@ -61,7 +61,7 @@ export class ChatAttachment {
   @Prop({ type: Number, default: null })
   height?: number | null;
 
-  // ✅ Para LOCATION
+  //  Para LOCATION
   @Prop({ type: Number })
   latitude?: number;
 
@@ -75,38 +75,38 @@ export class ChatAttachment {
 export const ChatAttachmentSchema = SchemaFactory.createForClass(ChatAttachment);
 
 /**
- * ✅ ChatMessage
+ *  ChatMessage
  * Representa un mensaje persistido en Mongo.
  */
 @Schema({ timestamps: true })
 export class ChatMessage extends Document {
   /**
-   * ✅ Id de la conversación (Mongo ObjectId como string)
+   *  Id de la conversación (Mongo ObjectId como string)
    */
   @Prop({ required: true, index: true })
   conversationId!: string;
 
   /**
-   * ✅ Quién envió el mensaje (UUID del usuario en tu BD)
+   *  Quién envió el mensaje (UUID del usuario en tu BD)
    */
   @Prop({ required: true })
   senderId!: string;
 
   /**
-   * ✅ Rol (user / assistant)
+   *  Rol (user / assistant)
    */
   @Prop({ required: true, enum: ['user', 'assistant'] })
   role!: MessageRole;
 
   /**
-   * ✅ Contenido del mensaje
+   *  Contenido del mensaje
    * - Puede ser "" cuando el mensaje es solo adjuntos (WhatsApp-like)
    */
   @Prop({ required: false, default: '' })
   text!: string;
 
   /**
-   * ✅ Adjuntos del mensaje (archivos o ubicación)
+   *  Adjuntos del mensaje (archivos o ubicación)
    */
   @Prop({ type: [ChatAttachmentSchema], default: [] })
   attachments!: ChatAttachment[];
@@ -115,7 +115,7 @@ export class ChatMessage extends Document {
 export const ChatMessageSchema = SchemaFactory.createForClass(ChatMessage);
 
 /**
- * ✅ Índice recomendado:
+ *  Índice recomendado:
  * - Permite buscar rápido los mensajes por conversación y ordenarlos por fecha
  */
 ChatMessageSchema.index({ conversationId: 1, createdAt: -1 });

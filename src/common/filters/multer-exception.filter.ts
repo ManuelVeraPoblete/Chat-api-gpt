@@ -3,7 +3,7 @@ import type { Response } from 'express';
 import { MulterError } from 'multer';
 
 /**
- * ✅ MulterExceptionFilter
+ *  MulterExceptionFilter
  *
  * Convierte errores comunes de Multer a respuestas HTTP claras.
  *
@@ -17,7 +17,7 @@ export class MulterExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
 
-    // ✅ Mensajes típicos
+    //  Mensajes típicos
     const message = this.mapMessage(exception);
 
     res.status(HttpStatus.BAD_REQUEST).json({

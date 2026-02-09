@@ -42,7 +42,7 @@ class EnvVars {
   BCRYPT_SALT_ROUNDS!: number;
 
   /**
-   * ✅ MongoDB connection string
+   *  MongoDB connection string
    * Ej: mongodb://localhost:27017/corpchat
    */
   @IsString()
@@ -50,14 +50,14 @@ class EnvVars {
   MONGO_URI!: string;
 
   /**
-   * ✅ OpenAI key (solo backend)
+   *  OpenAI key (solo backend)
    */
   @IsString()
   @IsNotEmpty()
   OPENAI_API_KEY!: string;
 
   /**
-   * ✅ OpenAI model (opcional)
+   *  OpenAI model (opcional)
    * Ej: gpt-4o-mini
    */
   @IsString()
@@ -65,7 +65,7 @@ class EnvVars {
   OPENAI_MODEL?: string;
 
   /**
-   * ✅ UUID del usuario "Asistente Corporativo" en tu BD
+   *  UUID del usuario "Asistente Corporativo" en tu BD
    */
   @IsString()
   @IsNotEmpty()
