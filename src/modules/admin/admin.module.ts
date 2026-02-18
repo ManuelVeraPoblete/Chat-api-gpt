@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AdminLogsModule } from './logs/admin-logs.module';
+import { AdminLogsModule } from './logsapi/admin-logs.module';
 
 /**
  * AdminModule
