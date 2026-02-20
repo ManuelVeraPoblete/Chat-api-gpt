@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AdminLogsModule } from './logsapi/admin-logs.module';
+import { AdminBootstrapService } from './admin-bootstrap.service';
+import { UsersModule } from '../users/users.module';
 
-/**
- * AdminModule
- * - Agrupa features administrativas (Logs, métricas, etc.)
- * - Mantiene el AppModule limpio (Clean Code)
- */
 @Module({
-  imports: [AdminLogsModule],
+  imports: [
+    AdminLogsModule,
+    UsersModule, // ✅ para poder usar UsersService en bootstrap
+  ],
+  providers: [AdminBootstrapService],
 })
 export class AdminModule {}

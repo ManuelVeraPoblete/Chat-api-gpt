@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { CryptoUtil } from 'src/common/util/crypto.util';
 import { RegisterDto } from './dto/register.dto';
+import { UserRole } from '@prisma/client';
 
 /**
  * AuthService: casos de uso de autenticación.
@@ -26,7 +27,7 @@ export class AuthService {
   }
 
   /**
-   *  Overloads (compatibilidad)
+   * Overloads (compatibilidad)
    * - register(dto)  nuevo recomendado
    * - register(email, displayName, password)  legacy
    */
@@ -34,15 +35,19 @@ export class AuthService {
   async register(email: string, displayName: string, password: string): Promise<any>;
 
   /**
-   *  Implementación única
+   * Implementación única
    * - Normaliza argumentos a un DTO
    * - Hashea password
    * - Crea usuario con campos corporativos
    * - Emite tokens y guarda refreshTokenHash
    * - Devuelve perfil público
+   *
+   * Nota de seguridad:
+   * - NO se permite registrar ADMIN desde el endpoint.
+   * - ADMIN se crea por bootstrap/seed y se gestiona por TI.
    */
   async register(arg1: RegisterDto | string, displayName?: string, password?: string) {
-    //  Normalizamos: si viene string => legacy, si viene objeto => DTO moderno
+    // Normalizamos: si viene string => legacy, si viene objeto => DTO moderno
     const dto: RegisterDto =
       typeof arg1 === 'string'
         ? ({
@@ -52,32 +57,31 @@ export class AuthService {
           } as RegisterDto)
         : arg1;
 
-    //  Hash password
+    // Hash password
     const passwordHash = await CryptoUtil.hash(dto.password, this.saltRounds);
 
-    /**
-     *  IMPORTANTE:
-     * UsersService.createUser debe aceptar estos campos opcionales
-     * phone / companySection / jobTitle
-     */
+    // Crea usuario (por defecto USER)
     const user = await this.users.createUser({
       email: dto.email,
       displayName: dto.displayName,
       passwordHash,
 
-      //  Campos corporativos (si existen en tu modelo)
+      // Campos corporativos (si existen en tu modelo)
       phone: dto.phone ?? null,
       companySection: dto.companySection ?? null,
       jobTitle: dto.jobTitle ?? null,
+
+      // ✅ Rol fijo (seguridad)
+      role: UserRole.USER,
     });
 
-    //  Emitimos tokens
-    const tokens = await this.issueTokens(user.id, user.email);
+    // ✅ Tokens incluyen role
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
 
-    //  Guardamos refresh token hasheado (rotación)
+    // Guardamos refresh token hasheado (rotación)
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
-    //  devolvemos perfil público (con campos corporativos si existen)
+    // devolvemos perfil público
     const publicUser = await this.users.findPublicById(user.id);
 
     return {
@@ -93,10 +97,11 @@ export class AuthService {
     const ok = await CryptoUtil.compare(password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    const tokens = await this.issueTokens(user.id, user.email);
+    // ✅ Tokens incluyen role
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
-    //  devolvemos perfil público completo
+    // devolvemos perfil público completo
     const publicUser = await this.users.findPublicById(user.id);
 
     return {
@@ -106,7 +111,7 @@ export class AuthService {
   }
 
   /**
-   *  Perfil del usuario logeado
+   * Perfil del usuario logeado
    */
   async me(userId: string) {
     return this.users.findPublicById(userId);
@@ -124,7 +129,8 @@ export class AuthService {
     if (!matches) throw new UnauthorizedException('Refresh token revoked');
 
     // 3) Emitimos nuevos tokens + rotación refresh
-    const tokens = await this.issueTokens(user.id, user.email);
+    // ✅ Tokens incluyen role actual del usuario (desde BD)
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
     return tokens;
@@ -137,11 +143,12 @@ export class AuthService {
   }
 
   /**
-   *  Access + Refresh tokens
+   * Access + Refresh tokens
+   * ✅ Incluye role en payload para poder proteger /admin/* por rol
    */
-  private async issueTokens(userId: string, email: string) {
+  private async issueTokens(userId: string, email: string, role: UserRole) {
     const accessToken = await this.jwt.signAsync(
-      { sub: userId, email },
+      { sub: userId, email, role },
       {
         secret: this.config.get<string>('jwt.accessSecret'),
         expiresIn: this.accessTtl, // segundos
@@ -149,7 +156,7 @@ export class AuthService {
     );
 
     const refreshToken = await this.jwt.signAsync(
-      { sub: userId, email },
+      { sub: userId, email, role },
       {
         secret: this.config.get<string>('jwt.refreshSecret'),
         expiresIn: this.refreshTtl, // segundos
@@ -160,7 +167,7 @@ export class AuthService {
   }
 
   /**
-   *  Guarda el refresh token hasheado para poder revocarlo/rotarlo
+   * Guarda el refresh token hasheado para poder revocarlo/rotarlo
    */
   private async storeRefreshTokenHash(userId: string, refreshToken: string) {
     const refreshTokenHash = await CryptoUtil.hash(refreshToken, this.saltRounds);
@@ -168,9 +175,10 @@ export class AuthService {
   }
 
   /**
-   *  Verifica firma y expiración del refresh token
+   * Verifica firma y expiración del refresh token
+   * ✅ Incluye role por consistencia (aunque el refresh luego se valida contra BD)
    */
-  private async verifyRefreshToken(token: string): Promise<{ sub: string; email: string }> {
+  private async verifyRefreshToken(token: string): Promise<{ sub: string; email: string; role?: UserRole }> {
     try {
       return await this.jwt.verifyAsync(token, {
         secret: this.config.get<string>('jwt.refreshSecret'),

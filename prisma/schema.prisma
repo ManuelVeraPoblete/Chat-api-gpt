@@ -1,7 +1,11 @@
 /**
- *  Prisma Schema (Prisma 7)
- * - En Prisma 7 NO se configura `url` aquí
- * - La URL se define en `prisma.config.ts`
+ * prisma/schema.prisma
+ * CorpChat - MariaDB/MySQL
+ * Objetivos:
+ * - Calzar con el ERD (tablas en minúscula)
+ * - Usar @map / @@map para nombres reales en BD
+ * - Relaciones BI-DIRECCIONALES (evita error P1012)
+ * - Relaciones nombradas explícitamente para evitar ambigüedad
  */
 
 generator client {
@@ -10,7 +14,30 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  // url se toma por env var DATABASE_URL (recomendado)
 }
+
+/**
+ * =========================
+ * ENUMS
+ * =========================
+ */
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+/**
+ * =========================
+ * USER
+ * =========================
+ */
 
 model User {
   id String @id @default(uuid()) @db.Char(36)
@@ -22,18 +49,193 @@ model User {
   companySection String? @map("company_section") @db.VarChar(120)
   jobTitle       String? @map("job_title") @db.VarChar(120)
 
+  /**
+   * Rol "principal" (rápido para reglas)
+   * - Mantiene compatibilidad con tu modelo actual
+   * - Además existe la tabla roles/user_roles para RBAC más formal
+   */
+  role UserRole @default(USER) @map("role")
+
   passwordHash     String  @map("password_hash") @db.VarChar(255)
   refreshTokenHash String? @map("refresh_token_hash") @db.VarChar(255)
 
   status UserStatus @default(ACTIVE)
 
-  createdAt DateTime @map("created_at") @default(now())
-  updatedAt DateTime @map("updated_at") @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("User")
+  /**
+   * ===== Relaciones (INVERSAS) =====
+   * IMPORTANTE:
+   * Prisma exige que TODA relación tenga su campo inverso,
+   * aunque no lo uses directamente en código.
+   */
+
+  // Roles RBAC (tabla puente)
+  userRoles UserRoles[]
+
+  // Participación en conversaciones
+  conversationParticipants ConversationParticipants[]
+
+  // ✅ FIX P1012: inverso de ConversationReadState.user
+  conversationReadStates ConversationReadState[]
+
+  // Auditoría (actor del evento)
+  auditLogs AuditLog[] @relation("AuditActor")
+
+  // Conversaciones creadas por este usuario
+  conversationsCreated Conversations[] @relation("ConversationCreatedBy")
+
+  @@map("user")
 }
 
-enum UserStatus {
-  ACTIVE
-  INACTIVE
+/**
+ * =========================
+ * ROLES y USER_ROLES
+ * =========================
+ */
+
+model Roles {
+  id String @id @default(uuid()) @db.Char(36)
+
+  code String @unique @db.VarChar(50)
+  name String @db.VarChar(120)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relación puente
+  userRoles UserRoles[]
+
+  @@map("roles")
+}
+
+model UserRoles {
+  userId String @map("user_id") @db.Char(36)
+  roleId String @map("role_id") @db.Char(36)
+
+  // Relaciones
+  user User  @relation(fields: [userId], references: [id])
+  role Roles @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+/**
+ * =========================
+ * CONVERSATIONS
+ * =========================
+ */
+
+model Conversations {
+  id String @id @default(uuid()) @db.Char(36)
+
+  type  String  @db.VarChar(30)
+  title String? @db.VarChar(180)
+
+  createdBy String?  @map("created_by") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /**
+   * Relación al usuario creador:
+   * - Nombre explícito para evitar ambigüedades
+   */
+  creator User? @relation("ConversationCreatedBy", fields: [createdBy], references: [id])
+
+  // Participantes
+  participants ConversationParticipants[]
+
+  // Snapshot 1:1
+  snapshot ConversationSnapshot?
+
+  // Estado de lectura por usuario (tabla puente)
+  readStates ConversationReadState[]
+
+  @@index([createdBy])
+  @@map("conversations")
+}
+
+model ConversationParticipants {
+  conversationId String @map("conversation_id") @db.Char(36)
+  userId         String @map("user_id") @db.Char(36)
+
+  // rol dentro de la conversación (opcional)
+  role String? @db.VarChar(30)
+
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  // Relaciones
+  conversation Conversations @relation(fields: [conversationId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model ConversationSnapshot {
+  conversationId String @id @map("conversation_id") @db.Char(36)
+
+  lastMessageId      String?   @map("last_message_id") @db.VarChar(80)
+  lastMessagePreview String?   @map("last_message_preview") @db.VarChar(500)
+  lastMessageAt      DateTime? @map("last_message_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relación 1:1
+  conversation Conversations @relation(fields: [conversationId], references: [id])
+
+  @@map("conversation_snapshot")
+}
+
+model ConversationReadState {
+  conversationId String @map("conversation_id") @db.Char(36)
+  userId         String @map("user_id") @db.Char(36)
+
+  lastReadMessageId String?   @map("last_read_message_id") @db.VarChar(80)
+  lastReadAt        DateTime? @map("last_read_at")
+
+  // Relaciones
+  conversation Conversations @relation(fields: [conversationId], references: [id])
+
+  /**
+   * ✅ Relación a User (lado "hijo")
+   * - y su inverso está en User.conversationReadStates
+   */
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_read_state")
+}
+
+/**
+ * =========================
+ * AUDIT LOG
+ * =========================
+ */
+
+model AuditLog {
+  id String @id @default(uuid()) @db.Char(36)
+
+  actorUserId String? @map("actor_user_id") @db.Char(36)
+
+  action     String  @db.VarChar(80)
+  entityType String  @map("entity_type") @db.VarChar(80)
+  entityId   String? @map("entity_id") @db.VarChar(80)
+
+  metadata Json? @map("metadata")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /**
+   * Relación nombrada para evitar ambigüedad:
+   * - inverso en User.auditLogs
+   */
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@map("audit_log")
 }

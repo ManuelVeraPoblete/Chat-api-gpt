@@ -3,23 +3,21 @@ import { AdminLogsService } from './admin-logs.service';
 import { AdminLogsQueryDto } from './dto/admin-logs-query.dto';
 import { AdminLogsResponseDto } from './dto/admin-logs-response.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { UserRole } from '@prisma/client';
 
-/**
- * AdminLogsController
- * - Validación + transform habilitados para que:
- *   - "" => undefined (por @Transform)
- *   - page/size/tail se transformen a number
- */
 @Controller('admin/logs')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminLogsController {
   constructor(private readonly service: AdminLogsService) {}
 
   @Get()
   @UsePipes(
     new ValidationPipe({
-      transform: true,       // ✅ necesario para class-transformer
-      whitelist: true,       // ✅ limpia params no esperados
+      transform: true,
+      whitelist: true,
       forbidNonWhitelisted: false,
     }),
   )

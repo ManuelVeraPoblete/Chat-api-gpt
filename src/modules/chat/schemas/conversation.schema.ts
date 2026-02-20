@@ -26,7 +26,12 @@ export const ReadStateSchema = SchemaFactory.createForClass(ReadState);
  */
 @Schema({ timestamps: true })
 export class Conversation extends Document {
-  @Prop({ type: [String], required: true, index: true })
+  /**
+   * ⚠️ IMPORTANTE:
+   * - NO uses index:true aquí si también defines ConversationSchema.index(...)
+   * - Evitamos el warning: Duplicate schema index
+   */
+  @Prop({ type: [String], required: true }) // ✅ quitamos index:true
   participants!: string[];
 
   @Prop({ type: Date, default: () => new Date() })
@@ -34,8 +39,7 @@ export class Conversation extends Document {
 
   /**
    *  Estado de lectura por usuario (no-leídos)
-   * Importante:
-   * - Es un array para mantenerlo simple con Mongoose
+   * - Array para mantenerlo simple con Mongoose
    * - En conversaciones directas tendrá 2 elementos
    */
   @Prop({ type: [ReadStateSchema], default: [] })
@@ -48,6 +52,6 @@ export class Conversation extends Document {
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
 
-//  Índices recomendados (consultas frecuentes)
+// ✅ Índices recomendados (consultas frecuentes)
 ConversationSchema.index({ participants: 1 });
 ConversationSchema.index({ lastMessageAt: -1 });
